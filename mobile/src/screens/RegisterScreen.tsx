@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -83,13 +83,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
         payload.whatsapp_number = whatsapp;
       }
 
-      await api.register(payload);
+      const res = await api.register(payload);
       setErrorMsg('');
 
       if (tab === 'whatsapp') {
         onWhatsappRegister(whatsapp);
       } else {
-        Alert.alert('Compte créé', 'Vérifiez votre boîte email pour activer votre compte.');
+        Alert.alert('Compte créé', res?.message || `Vérifiez votre boîte e-mail à l'adresse ${email} pour activer votre compte.`);
         onSuccess();
       }
     } catch (err: any) {

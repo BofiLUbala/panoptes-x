@@ -1,4 +1,4 @@
-﻿import random
+import random
 import bcrypt
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
@@ -54,6 +54,9 @@ def _registration_error_response(errors):
 
 
 def _send_activation(user, token):
+    import logging
+    logger = logging.getLogger(__name__)
+
     if user.auth_method == 'whatsapp':
         # Simulation — envoi OTP WhatsApp (à remplacer par API réelle)
         print(f"[OTP WhatsApp] OTP pour {user.whatsapp_number} : {token.otp_code}")
@@ -62,6 +65,12 @@ def _send_activation(user, token):
     if user.email:
         activation_link = f"{settings.ACTIVATION_URL}/activate/?token={token.token}"
         subject = 'Activez votre compte Panoptes-x'
+
+        logger.info(f"[SmartEdu Email] Sending activation to: {user.email}")
+        logger.info(f"[SmartEdu Email] SMTP: {settings.EMAIL_HOST}:{settings.EMAIL_PORT}")
+        logger.info(f"[SmartEdu Email] Backend: {settings.EMAIL_BACKEND}")
+        logger.info(f"[SmartEdu Email] From: {settings.DEFAULT_FROM_EMAIL}")
+        logger.info(f"[SmartEdu Email] Password length: {len(settings.EMAIL_HOST_PASSWORD)} chars")
 
         text_content = (
             f'Bonjour {user.username},\n\n'
@@ -74,27 +83,39 @@ def _send_activation(user, token):
 
         html_content = (
             '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head>'
-            '<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">'
-            '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px">'
+            '<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif">'
+            '<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:40px 0">'
             '<tr><td align="center">'
-            '<table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08)">'
-            '<tr><td style="padding:40px 40px 0">'
-            '<h1 style="margin:0 0 8px;font-size:24px;color:#1a3a5c;font-weight:700">Panoptes-x</h1>'
-            '<p style="margin:0 0 24px;font-size:14px;color:#667085">Comptabilit&eacute; automatis&eacute;e pour agents Mobile Money</p>'
-            '<hr style="border:none;border-top:1px solid #eaecf0;margin:0 0 24px">'
-            '<p style="margin:0 0 16px;font-size:16px;color:#344054;line-height:1.6">'
-            'Bonjour <strong>' + user.username + '</strong>,</p>'
-            '<p style="margin:0 0 16px;font-size:16px;color:#344054;line-height:1.6">'
-            'Merci de vous &ecirc;tre inscrit sur Panoptes-x. Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>'
-            '<table cellpadding="0" cellspacing="0" style="margin:32px 0">'
-            '<tr><td align="center" style="background:#1a3a5c;border-radius:8px;padding:14px 32px">'
-            '<a href="' + activation_link + '" style="color:#ffffff;font-size:16px;font-weight:600;text-decoration:none">Activer mon compte</a>'
+            '<table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.05)">'
+            '<tr><td style="background:linear-gradient(135deg, #1a3a5c 0%, #102a43 100%);padding:40px;text-align:center">'
+            '<h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:800;letter-spacing:1px">PANOPTES-X</h1>'
+            '<p style="color:#859bb4;margin:6px 0 0;font-size:13px;font-weight:500">Comptabilité automatisée pour agents Mobile Money</p>'
+            '</td></tr>'
+            '<tr><td style="padding:40px 36px 30px">'
+            '<h2 style="color:#102a43;font-size:20px;font-weight:700;margin:0 0 16px;text-align:left">Vérification de votre compte</h2>'
+            '<p style="color:#486581;font-size:15px;line-height:1.6;margin:0 0 24px">'
+            'Bonjour <strong>' + user.username + '</strong>,<br><br>'
+            'Merci de vous être inscrit sur Panoptes-x. Pour finaliser la création de votre compte et accéder à votre tableau de bord, veuillez l\'activer en cliquant sur le bouton ci-dessous :'
+            '</p>'
+            '<table width="100%" cellpadding="0" cellspacing="0" style="margin:30px 0">'
+            '<tr><td align="center">'
+            '<a href="' + activation_link + '" style="display:inline-block;background-color:#1a3a5c;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;box-shadow:0 4px 10px rgba(26,58,92,0.2)">'
+            'Activer mon compte'
+            '</a>'
             '</td></tr></table>'
-            '<p style="margin:0 0 24px;font-size:14px;color:#98a2b3">Ce lien est valable 2 heures. Si vous n\'avez pas cr&eacute;&eacute; de compte, ignorez cet email.</p>'
-            '<hr style="border:none;border-top:1px solid #eaecf0;margin:0 0 24px">'
-            '<p style="margin:0 0 4px;font-size:14px;color:#667085">&Eacute;quipe Panoptes-x</p>'
-            '</td></tr></table>'
-            '</td></tr></table>'
+            '<hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0 20px">'
+            '<p style="color:#627d98;font-size:13px;line-height:1.5;margin:0 0 10px">'
+            'Ce lien est valable pendant <strong>2 heures</strong>. Si vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet e-mail.'
+            '</p>'
+            '<p style="color:#829ab1;font-size:12px;line-height:1.5;margin:0">'
+            'Si le bouton ne fonctionne pas, vous pouvez utiliser ce lien :<br>'
+            '<a href="' + activation_link + '" style="color:#1a3a5c;text-decoration:underline;word-break:break-all">' + activation_link + '</a>'
+            '</p>'
+            '</td></tr>'
+            '<tr><td style="background-color:#f8fafc;padding:24px;text-align:center;border-top:1px solid #f1f5f9">'
+            '<p style="color:#9fb3c8;font-size:12px;margin:0">© 2026 Panoptes-x — Tous droits réservés.</p>'
+            '</td></tr>'
+            '</table></td></tr></table>'
             '</body></html>'
         )
 
@@ -104,12 +125,17 @@ def _send_activation(user, token):
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[user.email],
-                charset='utf-8',
             )
+            msg.encoding = 'utf-8'
             msg.attach_alternative(html_content, 'text/html')
-            msg.send(fail_silently=False)
-            print(f"[EMAIL] Activation envoyée à {user.email}")
+            result = msg.send(fail_silently=False)
+            logger.info(f"[Email] msg.send() returned: {result} (1=success, 0=failure)")
+            print(f"[EMAIL] Activation envoyée à {user.email} (result={result})")
+            print(f"[LIEN] {activation_link}")
         except Exception as e:
+            import traceback
+            logger.error(f"[Email] FAILED for {user.email}: {e}")
+            logger.error(traceback.format_exc())
             print(f"[EMAIL] ÉCHEC pour {user.email}: {e}")
 
 
@@ -141,7 +167,7 @@ def register(request):
     if user.auth_method == 'whatsapp':
         msg = 'Un code OTP à 6 chiffres vous a été envoyé par WhatsApp.'
     elif user.auth_method == 'email':
-        msg = 'Vérifiez votre email pour activer votre compte.'
+        msg = f"Vérifiez votre boîte e-mail à l'adresse {user.email} pour activer votre compte."
     else:
         msg = 'Un lien d\'activation vous a été envoyé.'
 

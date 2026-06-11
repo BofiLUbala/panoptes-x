@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { api } from '../services/api';
 
 interface AuthScreenProps {
   onLogin: () => void;
@@ -28,10 +29,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
 
   const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await api.login(identifier, password);
+      onLogin();
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const msg = err?.response?.data?.detail 
+        || err?.response?.data?.message 
+        || err?.message 
+        || 'Impossible de se connecter. Veuillez vérifier vos identifiants.';
+      Alert.alert('Erreur de connexion', msg);
+    } finally {
       setLoading(false);
-      Alert.alert('Erreur', 'Backend non connecté.');
-    }, 1500);
+    }
   };
 
   return (
