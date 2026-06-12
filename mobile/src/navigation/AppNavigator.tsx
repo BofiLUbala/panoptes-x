@@ -9,10 +9,7 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Switch,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -22,7 +19,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SIMScreen from '../screens/SIMScreen';
 import NavigationDrawer from '../components/NavigationDrawer';
 import { simStore } from '../services/simStore';
-import { SimService } from '../types';
+import { Operator, SimService } from '../types';
 
 const Tab = createBottomTabNavigator();
 
@@ -34,40 +31,89 @@ const TAB_ICONS: Record<string, { focused: keyof typeof Ionicons.glyphMap; defau
   Settings: { focused: 'person', default: 'person-outline' },
 };
 
+const OPERATORS: { key: Operator; label: string; color: string }[] = [
+  { key: Operator.AIRTEL, label: 'Airtel', color: '#ff4d4d' },
+  { key: Operator.ORANGE, label: 'Orange', color: '#ff9f1c' },
+  { key: Operator.VODACOM, label: 'Vodacom', color: '#e63946' },
+  { key: Operator.AFRICELL, label: 'Africell', color: '#9b5de5' },
+];
+
+const SERVICE_OPTIONS: { key: SimService; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+  { key: SimService.MOBILE_MONEY, label: 'Mobile Money', icon: 'swap-horizontal', color: '#22c55e' },
+  { key: SimService.DATA_BUNDLES, label: 'Data Bundles', icon: 'globe', color: '#3b82f6' },
+  { key: SimService.AIRTIME, label: 'Airtime (Crédit)', icon: 'call', color: '#f59e0b' },
+  { key: SimService.BILL_PAYMENT, label: 'Paiement Factures', icon: 'receipt', color: '#a78bfa' },
+  { key: SimService.TV, label: 'Abonnements TV', icon: 'tv', color: '#06b6d4' },
+];
+
+type Step = 'menu' | 'pickOperator' | 'enterCount' | 'enterNumbers' | 'pickServices' | 'confirm';
+
 const AppNavigator: React.FC = () => {
   const [serviceModalVisible, setServiceModalVisible] = useState(false);
-  const [addOperatorOpen, setAddOperatorOpen] = useState(false);
-  const [selectedOp, setSelectedOp] = useState<'Airtel' | 'Orange' | 'Vodacom' | 'Africell' | null>(null);
+  const [step, setStep] = useState<Step>('menu');
+  const [selectedOp, setSelectedOp] = useState<Operator | null>(null);
   const [simCount, setSimCount] = useState('');
-  const [selMobileMoney, setSelMobileMoney] = useState(true);
-  const [selDataBundle, setSelDataBundle] = useState(true);
+  const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<SimService[]>([]);
 
-  const handleAddOperatorSims = () => {
+  const selectedOpInfo = OPERATORS.find((o) => o.key === selectedOp);
+
+  const resetModal = () => {
+    setStep('menu');
+    setSelectedOp(null);
+    setSimCount('');
+    setPhoneNumbers([]);
+    setSelectedServices([]);
+  };
+
+  const closeModal = () => {
+    setServiceModalVisible(false);
+    resetModal();
+  };
+
+  const toggleServiceSelection = (svc: SimService) => {
+    setSelectedServices((prev) =>
+      prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
+    );
+  };
+
+  const updatePhoneNumber = (index: number, value: string) => {
+    setPhoneNumbers((prev) => {
+      const updated = [...prev];
+      // Force the prefix to be +243 and only allow numeric characters after it
+      let digits = value.slice(4).replace(/\D/g, '');
+      updated[index] = '+243' + digits;
+      return updated;
+    });
+  };
+
+  const handleConfirm = () => {
     if (!selectedOp) return;
-    const count = parseInt(simCount, 10);
-    if (!count || count < 1) {
-      Alert.alert('Erreur', 'Veuillez saisir un nombre valide de SIMs.');
+    const invalid = phoneNumbers.some((n) => n.trim().length < 13);
+    if (invalid) {
+      Alert.alert(
+        'Erreur',
+        'Veuillez saisir un numéro valide composé de 9 chiffres après l\'indicatif +243.'
+      );
       return;
     }
 
-    const services: SimService[] = [];
-    if (selMobileMoney) services.push(SimService.MOBILE_MONEY);
-    if (selDataBundle) services.push(SimService.DATA_BUNDLES);
-    simStore.addSims(selectedOp, count, services);
-    setSimCount('');
-    setSelectedOp(null);
-    setAddOperatorOpen(false);
-    setServiceModalVisible(false);
-    setSelMobileMoney(true);
-    setSelDataBundle(true);
-    Alert.alert('Succès', `${count} SIM(s) ${selectedOp} ajoutée(s) avec succès !`);
+    simStore.addSims(selectedOp, phoneNumbers, selectedServices);
+    Alert.alert(
+      'Succès',
+      `${phoneNumbers.length} SIM(s) ${selectedOpInfo?.label} ajoutée(s) avec ${selectedServices.length} service(s) !`
+    );
+    closeModal();
   };
 
   const drawerItems = [
     {
       icon: 'construct-outline' as const,
       label: 'Service',
-      onPress: () => setServiceModalVisible(true),
+      onPress: () => {
+        resetModal();
+        setServiceModalVisible(true);
+      },
     },
     {
       icon: 'settings-outline' as const,
@@ -75,6 +121,192 @@ const AppNavigator: React.FC = () => {
       onPress: () => {},
     },
   ];
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 'menu':
+        return (
+          <>
+            <TouchableOpacity
+              style={styles.featureBtn}
+              onPress={() => setStep('pickOperator')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.featureBtnLeft}>
+                <Ionicons name="add-circle" size={24} color={colors.success} />
+                <Text style={styles.featureBtnText}>Ajouter opérateur</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'pickOperator':
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Choisir un opérateur</Text>
+            <View style={styles.operatorGrid}>
+              {OPERATORS.map((op) => (
+                <TouchableOpacity
+                  key={op.key}
+                  style={[styles.operatorCard, { borderColor: op.color }]}
+                  onPress={() => {
+                    setSelectedOp(op.key);
+                    setStep('enterCount');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.operatorDot, { backgroundColor: op.color }]} />
+                  <Text style={[styles.operatorLabel, { color: op.color }]}>{op.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.backLink} onPress={() => setStep('menu')}>
+              <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+              <Text style={styles.backLinkText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'enterCount':
+        return (
+          <View style={styles.stepContainer}>
+            <View style={[styles.stepIcon, { backgroundColor: (selectedOpInfo?.color || colors.primary) + '20' }]}>
+              <Ionicons name="phone-portrait" size={32} color={selectedOpInfo?.color || colors.primary} />
+            </View>
+            <Text style={styles.stepTitle}>
+              Combien de SIMs {selectedOpInfo?.label} ?
+            </Text>
+            <TextInput
+              style={styles.countInput}
+              placeholder="Ex: 2"
+              placeholderTextColor="#64748B"
+              keyboardType="number-pad"
+              value={simCount}
+              onChangeText={setSimCount}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[styles.nextBtn, (!simCount || parseInt(simCount) < 1) && styles.nextBtnDisabled]}
+              onPress={() => {
+                const c = parseInt(simCount, 10);
+                if (!c || c < 1) {
+                  Alert.alert('Erreur', 'Veuillez saisir un nombre valide.');
+                  return;
+                }
+                // Initialize empty phone number fields with prefix +243
+                setPhoneNumbers(Array(c).fill('+243'));
+                setStep('enterNumbers');
+              }}
+              disabled={!simCount || parseInt(simCount) < 1}
+            >
+              <Text style={styles.nextBtnText}>Suivant — Entrer les numéros</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.background} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.backLink} onPress={() => setStep('pickOperator')}>
+              <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+              <Text style={styles.backLinkText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'enterNumbers':
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Entrez vos numéros</Text>
+            <Text style={styles.stepSubtitle}>
+              Saisissez le numéro de chaque SIM {selectedOpInfo?.label}
+            </Text>
+            <View style={styles.phoneNumbersList}>
+              {phoneNumbers.map((num, idx) => (
+                <View key={idx} style={styles.phoneInputRow}>
+                  <View style={[styles.phoneInputIndex, { backgroundColor: (selectedOpInfo?.color || colors.primary) + '20' }]}>
+                    <Text style={[styles.phoneInputIndexText, { color: selectedOpInfo?.color || colors.primary }]}>{idx + 1}</Text>
+                  </View>
+                  <TextInput
+                    style={styles.phoneInput}
+                    placeholder="+243 XX XXX XXXX"
+                    placeholderTextColor="#64748B"
+                    keyboardType="phone-pad"
+                    value={num}
+                    onChangeText={(val) => updatePhoneNumber(idx, val)}
+                    autoFocus={idx === 0}
+                    maxLength={13}
+                  />
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.nextBtn, phoneNumbers.some((n) => n.trim().length < 13) && styles.nextBtnDisabled]}
+              onPress={() => {
+                const invalid = phoneNumbers.some((n) => n.trim().length < 13);
+                if (invalid) {
+                  Alert.alert('Erreur', 'Veuillez saisir un numéro valide composé de 9 chiffres après l\'indicatif +243.');
+                  return;
+                }
+                setStep('pickServices');
+              }}
+              disabled={phoneNumbers.some((n) => n.trim().length < 13)}
+            >
+              <Text style={styles.nextBtnText}>Suivant — Choisir les services</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.background} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.backLink} onPress={() => setStep('enterCount')}>
+              <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+              <Text style={styles.backLinkText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'pickServices':
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Sélectionnez les services</Text>
+            <Text style={styles.stepSubtitle}>
+              Ces services seront activés sur vos {phoneNumbers.filter((n) => n.trim()).length} SIM(s) {selectedOpInfo?.label}
+            </Text>
+            <View style={styles.servicesList}>
+              {SERVICE_OPTIONS.map((svc) => {
+                const isSelected = selectedServices.includes(svc.key);
+                return (
+                  <TouchableOpacity
+                    key={svc.key}
+                    style={[styles.serviceRow, isSelected && styles.serviceRowActive]}
+                    onPress={() => toggleServiceSelection(svc.key)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.serviceCheckbox, isSelected && styles.serviceCheckboxActive]}>
+                      {isSelected && <Ionicons name="checkmark" size={14} color={colors.background} />}
+                    </View>
+                    <Ionicons name={svc.icon} size={18} color={isSelected ? svc.color : colors.textLight} />
+                    <Text style={[styles.serviceLabel, isSelected && styles.serviceLabelActive]}>
+                      {svc.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.nextBtn, selectedServices.length === 0 && styles.nextBtnDisabled]}
+              onPress={handleConfirm}
+              disabled={selectedServices.length === 0}
+            >
+              <Ionicons name="checkmark-circle" size={20} color={colors.background} />
+              <Text style={styles.nextBtnText}>
+                Ajouter {phoneNumbers.filter((n) => n.trim()).length} SIM(s) avec {selectedServices.length} service(s)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.backLink} onPress={() => setStep('enterNumbers')}>
+              <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+              <Text style={styles.backLinkText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
@@ -96,8 +328,9 @@ const AppNavigator: React.FC = () => {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
             borderTopWidth: 1,
-            paddingTop: 4,
-            height: 60,
+            paddingTop: 8,
+            height: 72,
+            paddingBottom: 14,
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -116,135 +349,44 @@ const AppNavigator: React.FC = () => {
 
       <NavigationDrawer items={drawerItems} />
 
-      {/* MODAL: Service Feature (Gestion des SIMs / Opérateurs) */}
+      {/* MODAL: Service — Step-by-step wizard */}
       <Modal
         visible={serviceModalVisible}
         animationType="slide"
         transparent
-        onRequestClose={() => setServiceModalVisible(false)}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ justifyContent: 'flex-end' }}
-          >
-            <View style={styles.modalContent}>
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                <View style={styles.modalHeader}>
-                  <View style={styles.modalTitleContainer}>
-                    <Ionicons name="construct-outline" size={22} color={colors.primary} />
-                    <Text style={styles.modalTitle}>Service</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setServiceModalVisible(false)}>
-                    <Ionicons name="close" size={24} color={colors.text} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Sub-feature: Ajouter operateur */}
-                <TouchableOpacity
-                  style={styles.featureBtn}
-                  onPress={() => setAddOperatorOpen(!addOperatorOpen)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.featureBtnLeft}>
-                    <Ionicons name="add-circle" size={24} color={colors.success} />
-                    <Text style={styles.featureBtnText}>Ajouter opérateur</Text>
-                  </View>
-                  <Ionicons
-                    name={addOperatorOpen ? 'chevron-down' : 'chevron-forward'}
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
-
-                {/* Operator choice list when sub-feature is expanded */}
-                {addOperatorOpen && (
-                  <View style={styles.operatorListContainer}>
-                    {(['Airtel', 'Orange', 'Vodacom', 'Africell'] as const).map((op) => {
-                      const opColor =
-                        op === 'Airtel'
-                          ? '#ff4d4d'
-                          : op === 'Orange'
-                          ? '#ff9f1c'
-                          : op === 'Vodacom'
-                          ? '#e63946'
-                          : '#9b5de5';
-
-                      return (
-                        <TouchableOpacity
-                          key={op}
-                          style={[styles.operatorSelectBtn, { borderColor: opColor }]}
-                          onPress={() => { setSelectedOp(op); setSimCount(''); }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={[styles.operatorDot, { backgroundColor: opColor }]} />
-                          <Text style={[styles.operatorText, { color: opColor }]}>{op}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {/* Sub-modal/Inline form: Prompt for Sim Count */}
-                {selectedOp && (
-                  <View style={styles.promptContainer}>
-                    <Text style={styles.promptTitle}>
-                      Combien de SIMs {selectedOp} voulez-vous ajouter ?
-                    </Text>
-                    <TextInput
-                      style={styles.modalInput}
-                      placeholder="Entrez le nombre de SIMs (ex: 2)"
-                      placeholderTextColor="#64748B"
-                      keyboardType="number-pad"
-                      value={simCount}
-                      onChangeText={setSimCount}
-                      autoFocus
-                    />
-
-                    <Text style={styles.servicesLabel}>Services à activer</Text>
-                    <View style={styles.serviceToggleRow}>
-                      <Ionicons name="swap-horizontal" size={18} color={colors.success} />
-                      <Text style={styles.serviceToggleText}>Mobile Money</Text>
-                      <Switch
-                        value={selMobileMoney}
-                        onValueChange={setSelMobileMoney}
-                        trackColor={{ false: colors.border, true: '#64dfdf80' }}
-                        thumbColor={selMobileMoney ? '#64dfdf' : colors.textLight}
-                      />
-                    </View>
-                    <View style={styles.serviceToggleRow}>
-                      <Ionicons name="globe" size={18} color={colors.primary} />
-                      <Text style={styles.serviceToggleText}>Data Bundle</Text>
-                      <Switch
-                        value={selDataBundle}
-                        onValueChange={setSelDataBundle}
-                        trackColor={{ false: colors.border, true: '#64dfdf80' }}
-                        thumbColor={selDataBundle ? '#64dfdf' : colors.textLight}
-                      />
-                    </View>
-
-                    <View style={styles.promptActions}>
-                      <TouchableOpacity
-                        style={[styles.promptBtn, styles.promptBtnCancel]}
-                        onPress={() => {
-                          setSelectedOp(null);
-                          setSimCount('');
-                        }}
-                      >
-                        <Text style={styles.promptBtnCancelText}>Annuler</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.promptBtn, styles.promptBtnConfirm]}
-                        onPress={handleAddOperatorSims}
-                      >
-                        <Text style={styles.promptBtnConfirmText}>Ajouter</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Ionicons name="construct-outline" size={22} color={colors.primary} />
+                <Text style={styles.modalTitle}>Service</Text>
+              </View>
+              <TouchableOpacity onPress={closeModal}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+
+            {/* Step progress indicator */}
+            {step !== 'menu' && (
+              <View style={styles.progressRow}>
+                {['pickOperator', 'enterCount', 'enterNumbers', 'pickServices'].map((s, idx) => (
+                  <View
+                    key={s}
+                    style={[
+                      styles.progressDot,
+                      (step === s || ['pickOperator', 'enterCount', 'enterNumbers', 'pickServices'].indexOf(step) > idx) && styles.progressDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {renderStepContent()}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </>
@@ -264,13 +406,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 48,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingBottom: spacing.sm,
@@ -284,6 +427,21 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '800',
     color: colors.text,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: spacing.lg,
+  },
+  progressDot: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+  },
+  progressDotActive: {
+    backgroundColor: colors.primary,
   },
   featureBtn: {
     flexDirection: 'row',
@@ -306,111 +464,171 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
   },
-  operatorListContainer: {
+  stepContainer: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  stepIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  stepSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  operatorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.xs,
+    width: '100%',
   },
-  operatorSelectBtn: {
+  operatorCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    paddingVertical: spacing.sm,
+    borderWidth: 1.5,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
-    minWidth: '47%',
+    width: '48%',
   },
   operatorDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
-  operatorText: {
-    fontSize: fontSize.sm,
+  operatorLabel: {
+    fontSize: fontSize.md,
     fontWeight: '800',
   },
-  promptContainer: {
+  countInput: {
+    backgroundColor: colors.background,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    borderRadius: borderRadius.md,
+    color: colors.white,
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    width: 140,
+  },
+  servicesList: {
+    width: '100%',
+    gap: spacing.sm,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
-    marginTop: spacing.sm,
   },
-  promptTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-    textAlign: 'center',
+  serviceRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#0f1f3d',
   },
-  modalInput: {
-    backgroundColor: colors.surface,
+  serviceCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    color: colors.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: fontSize.sm,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  servicesLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  serviceToggleRow: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+    backgroundColor: 'transparent',
   },
-  serviceToggleText: {
-    flex: 1,
+  serviceCheckboxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  serviceLabel: {
     fontSize: fontSize.sm,
-    color: colors.text,
+    color: colors.textSecondary,
     fontWeight: '600',
-  },
-  promptActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  promptBtn: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
+  },
+  serviceLabelActive: {
+    color: colors.text,
+  },
+  nextBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  promptBtnCancel: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  promptBtnCancelText: {
-    color: colors.textSecondary,
-    fontWeight: '700',
-    fontSize: fontSize.sm,
-  },
-  promptBtnConfirm: {
+    gap: spacing.sm,
     backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    width: '100%',
+    marginTop: spacing.sm,
   },
-  promptBtnConfirmText: {
-    color: colors.background,
-    fontWeight: '800',
+  nextBtnDisabled: {
+    opacity: 0.4,
+  },
+  nextBtnText: {
     fontSize: fontSize.sm,
+    fontWeight: '800',
+    color: colors.background,
+  },
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  backLinkText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  phoneNumbersList: {
+    width: '100%',
+    gap: spacing.sm,
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  phoneInputIndex: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  phoneInputIndexText: {
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    color: colors.white,
+    fontSize: fontSize.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
 });
 

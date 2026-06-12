@@ -1,4 +1,4 @@
-﻿import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { Transaction, FailedParse, ServiceProfile } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -16,6 +16,20 @@ class AgentTrackApi {
     });
 
     console.log('PANOPTES-X API:', API_BASE_URL);
+  }
+
+  private logoutListeners: (() => void)[] = [];
+
+  onLogout(listener: () => void) {
+    this.logoutListeners.push(listener);
+    return () => {
+      this.logoutListeners = this.logoutListeners.filter((l) => l !== listener);
+    };
+  }
+
+  logout() {
+    this.clearToken();
+    this.logoutListeners.forEach((l) => l());
   }
 
   setToken(token: string): void {
