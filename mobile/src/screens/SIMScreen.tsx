@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,18 +20,25 @@ const SIMScreen: React.FC = () => {
   const isTablet = width >= 768;
 
   const [sims, setSims] = useState<SimCard[]>(simStore.getSims());
-  const [selectedSimId, setSelectedSimId] = useState<string | null>(simStore.getSims().length > 0 ? simStore.getSims()[0].id : null);
+  const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
     const unsubscribe = simStore.subscribe(() => {
-      const updatedSims = simStore.getSims();
-      setSims(updatedSims);
+      const updated = simStore.getSims();
+      setSims(updated);
+      // Auto-select first if nothing selected
       setSelectedSimId((prev) => {
-        if (!prev && updatedSims.length > 0) return updatedSims[0].id;
-        return prev;
+        if (prev && updated.find((s) => s.id === prev)) return prev;
+        return updated.length > 0 ? updated[0].id : null;
       });
     });
+    // Sync initial state
+    const initial = simStore.getSims();
+    setSims(initial);
+    if (initial.length > 0 && !selectedSimId) {
+      setSelectedSimId(initial[0].id);
+    }
     return unsubscribe;
   }, []);
 
@@ -50,22 +57,11 @@ const SIMScreen: React.FC = () => {
   }, []);
 
   const handleToggleService = useCallback((service: SimService) => {
-    setSims((prev) => {
-      const updated = prev.map((sim) => {
-        if (sim.id !== selectedSimId) return sim;
-        const enabled = sim.enabledServices.includes(service);
-        return {
-          ...sim,
-          enabledServices: enabled
-            ? sim.enabledServices.filter((s) => s !== service)
-            : [...sim.enabledServices, service],
-        };
-      });
-      simStore.setSims(updated);
-      return updated;
-    });
+    if (!selectedSimId) return;
+    simStore.toggleService(selectedSimId, service);
   }, [selectedSimId]);
 
+  // Mobile: show detail fullscreen
   if (!isTablet && showDetail && selectedSim) {
     return (
       <View style={styles.container}>
@@ -88,26 +84,39 @@ const SIMScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Mes cartes SIM" subtitle={isTablet ? '' : `${sims.length} SIM`} />
+      <AppHeader title="Mes cartes SIM" subtitle={`${sims.length} SIM`} />
 
       <View style={[styles.main, isTablet && styles.mainTablet]}>
+        {/* SIM List */}
         <View style={[styles.listPanel, isTablet && styles.listPanelTablet]}>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle}>Cartes SIM</Text>
             <Text style={styles.listCount}>{sims.length} enregistrée(s)</Text>
           </View>
-          <ScrollView contentContainerStyle={styles.listScroll}>
-            {sims.map((sim) => (
-              <SIMCardItem
-                key={sim.id}
-                sim={sim}
-                selected={selectedSimId === sim.id}
-                onPress={() => handleSelectSim(sim.id)}
-              />
-            ))}
-          </ScrollView>
+
+          {sims.length === 0 ? (
+            <View style={styles.emptyListBox}>
+              <Ionicons name="phone-portrait-outline" size={40} color={colors.textLight} />
+              <Text style={styles.emptyListTitle}>Aucune SIM</Text>
+              <Text style={styles.emptyListText}>
+                Allez dans le menu → Service → Ajouter opérateur pour ajouter vos premières cartes SIM.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.listScroll}>
+              {sims.map((sim) => (
+                <SIMCardItem
+                  key={sim.id}
+                  sim={sim}
+                  selected={selectedSimId === sim.id}
+                  onPress={() => handleSelectSim(sim.id)}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
+        {/* Detail Panel (tablet only) */}
         {isTablet && (
           <View style={styles.detailPanel}>
             {selectedSim ? (
@@ -127,13 +136,6 @@ const SIMScreen: React.FC = () => {
           </View>
         )}
       </View>
-
-      {!isTablet && !showDetail && (
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Cartes SIM</Text>
-          <Text style={styles.listCount}>{sims.length} enregistrée(s)</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -179,6 +181,24 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingTop: spacing.xs,
     paddingBottom: 40,
+  },
+  emptyListBox: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  emptyListTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emptyListText: {
+    fontSize: fontSize.sm,
+    color: colors.textLight,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: spacing.md,
   },
   detailPanel: {
     flex: 0.6,
