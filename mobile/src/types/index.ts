@@ -59,3 +59,33 @@ export interface StockStatus {
 
 export type ServiceProfile = 'business' | 'family' | 'partner';
 
+export enum SimService {
+  MOBILE_MONEY = 'MOBILE_MONEY',
+  DATA_BUNDLES = 'DATA_BUNDLES',
+  AIRTIME = 'AIRTIME',
+  BILL_PAYMENT = 'BILL_PAYMENT',
+  TV = 'TV',
+}
+
+export interface SimCard {
+  id: string;
+  operator: Operator;
+  phoneNumber: string;
+  cashBalance: number;
+  airtimeBalance?: number;
+  dataBalance?: number;
+  dataUnit?: string;
+  enabledServices: SimService[];
+}
+
+export interface SimTransaction {
+  id: string;
+  type: TransactionType;
+  service: SimService;
+  amount: number;
+  commission?: number;
+  fee?: number;
+  timestamp: string;
+  label: string;
+}
+

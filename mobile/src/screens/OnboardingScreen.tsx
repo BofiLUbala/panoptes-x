@@ -5,9 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
-  ImageStyle,} from 'react-native';
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import AppLogo from '../components/AppLogo';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -16,42 +16,36 @@ interface OnboardingScreenProps {
 const STEPS = [
   {
     title: 'Bienvenue sur Panoptes-x',
-    subtitle:
-      'Automatisez votre comptabilitÃ© Mobile Money et vente de recharges.',
-    showLogo: true,
+    subtitle: 'Automatisez votre comptabilité Mobile Money et vente de recharges.',
+    icon: 'grid' as const,
   },
   {
     title: 'Lecture des SMS',
-    subtitle:
-      'Autorisez la lecture des SMS pour que nous puissions capturer automatiquement vos transactions.',
-    showLogo: true,
+    subtitle: 'Autorisez la lecture des SMS pour capturer automatiquement vos transactions.',
+    icon: 'chatbubbles' as const,
   },
   {
     title: 'Optimisation batterie',
-    subtitle:
-      'DÃ©sactivez l\'optimisation de la batterie pour que l\'application puisse fonctionner en arriÃ¨re-plan.',
-    showLogo: true,
+    subtitle: 'Désactivez l\'optimisation de la batterie pour un fonctionnement en arrière-plan.',
+    icon: 'battery-charging' as const,
   },
   {
-    title: 'PrÃªt Ã  dÃ©marrer',
-    subtitle:
-      'CrÃ©ez votre compte avec votre numÃ©ro de tÃ©lÃ©phone et un code PIN Ã  4 chiffres.',
-    showLogo: true,
+    title: 'Prêt à démarrer',
+    subtitle: 'Créez votre compte avec votre numéro de téléphone et un code PIN à 4 chiffres.',
+    icon: 'rocket' as const,
   },
 ];
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
-  const { width } = useWindowDimensions();
-
   const isLast = step === STEPS.length - 1;
 
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
-        {STEPS[step].showLogo ? (
-          <AppLogo size={132} style={styles.logo as ImageStyle} />
-        ) : null}
+        <View style={styles.iconContainer}>
+          <Ionicons name={STEPS[step].icon} size={56} color={colors.primary} />
+        </View>
         <Text style={styles.title}>{STEPS[step].title}</Text>
         <Text style={styles.subtitle}>{STEPS[step].subtitle}</Text>
       </View>
@@ -59,10 +53,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
       <View style={styles.bottomSection}>
         <View style={styles.dots}>
           {STEPS.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === step && styles.dotActive]}
-            />
+            <View key={i} style={[styles.dot, i === step && styles.dotActive]} />
           ))}
         </View>
 
@@ -73,6 +64,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
           <Text style={styles.buttonText}>
             {isLast ? 'Commencer' : 'Suivant'}
           </Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.background} />
         </TouchableOpacity>
 
         {!isLast && (
@@ -88,7 +80,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
     justifyContent: 'space-between',
   },
   topSection: {
@@ -97,21 +89,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  logo: {
+  iconContainer: {
+    width: 112,
+    height: 112,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.xl,
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.white,
     textAlign: 'center',
     marginBottom: spacing.md,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.textLight,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
+    paddingHorizontal: 20,
   },
   bottomSection: {
     paddingHorizontal: spacing.xl,
@@ -127,25 +129,28 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.border,
   },
   dotActive: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary,
     width: 28,
     borderRadius: 5,
   },
   button: {
-    backgroundColor: colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: 60,
     width: '100%',
-    alignItems: 'center',
   },
   buttonText: {
     fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: colors.primary,
+    color: colors.background,
   },
   skipButton: {
     marginTop: spacing.md,
@@ -158,5 +163,3 @@ const styles = StyleSheet.create({
 });
 
 export default OnboardingScreen;
-
-

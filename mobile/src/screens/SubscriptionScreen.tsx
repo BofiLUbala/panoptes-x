@@ -7,7 +7,9 @@ import {
   ScrollView,
   Clipboard,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import AppHeader from '../components/AppHeader';
 
 interface NetworkOption {
   key: string;
@@ -20,7 +22,7 @@ const NETWORKS: NetworkOption[] = [
   {
     key: 'mpesa',
     label: 'M-Pesa',
-    merchantNumber: '+243 99 999 9999',
+    merchantNumber: '',
     instructions: {
       fr: 'Envoyez le montant de votre abonnement au numéro ci-dessus, puis revenez dans l\'application.',
       ln: 'Tinda mbongo ya abonnement na yo na nimero oyo, mpe zonga na application.',
@@ -29,7 +31,7 @@ const NETWORKS: NetworkOption[] = [
   {
     key: 'orange',
     label: 'Orange Money',
-    merchantNumber: '+243 89 888 8888',
+    merchantNumber: '',
     instructions: {
       fr: 'Effectuez un transfert Orange Money vers ce numéro marchand.',
       ln: 'Sala transfert ya Orange Money na nimero ya marchand oyo.',
@@ -38,19 +40,12 @@ const NETWORKS: NetworkOption[] = [
   {
     key: 'airtel',
     label: 'Airtel Money',
-    merchantNumber: '+243 97 777 7777',
+    merchantNumber: '',
     instructions: {
       fr: 'Utilisez Airtel Money pour envoyer le paiement à ce numéro.',
       ln: 'Salela Airtel Money mpo na kotinda lifuti na nimero oyo.',
     },
   },
-];
-
-const PLANS = [
-  { name: 'Free', price: '0 USD', desc: 'Saisie manuelle, 50 tx/mois' },
-  { name: 'Basic', price: '5 USD/mois', desc: 'Automatisation SMS, multi-SIM' },
-  { name: 'Pro', price: '10 USD/mois', desc: 'Graphiques, export Excel, alertes stock' },
-  { name: 'Business', price: '15 USD/mois', desc: 'Suivi multi-terminaux, dashboard Admin' },
 ];
 
 const SubscriptionScreen: React.FC = () => {
@@ -67,36 +62,27 @@ const SubscriptionScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Abonnement</Text>
-        <Text style={styles.headerSubtitle}>Choisissez votre formule</Text>
-      </View>
+      <AppHeader title="Abonnement" />
       <ScrollView contentContainerStyle={styles.scroll}>
-        {PLANS.map((plan) => (
-          <TouchableOpacity key={plan.name} style={styles.planCard}>
-            <View style={styles.planHeader}>
-              <Text style={styles.planName}>{plan.name}</Text>
-              <Text style={styles.planPrice}>{plan.price}</Text>
-            </View>
-            <Text style={styles.planDesc}>{plan.desc}</Text>
-          </TouchableOpacity>
-        ))}
+        {/* Empty plans — will be configured later */}
+        <View style={styles.emptyPlansBox}>
+          <Ionicons name="card-outline" size={36} color={colors.textLight} />
+          <Text style={styles.emptyPlansTitle}>Plans d'abonnement</Text>
+          <Text style={styles.emptyPlansText}>
+            Les plans d'abonnement seront disponibles prochainement.
+          </Text>
+        </View>
 
         <Text style={styles.sectionTitle}>Paiement par Mobile Money</Text>
-        <Text style={styles.sectionSubtitle}>
-          Choisissez votre réseau de paiement
-        </Text>
+        <Text style={styles.sectionSubtitle}>Choisissez votre réseau de paiement</Text>
 
         {NETWORKS.map((net) => (
           <TouchableOpacity
             key={net.key}
-            style={[
-              styles.networkCard,
-              selectedNetwork === net.key && styles.networkCardActive,
-            ]}
+            style={[styles.networkCard, selectedNetwork === net.key && styles.networkCardActive]}
             onPress={() => setSelectedNetwork(net.key)}
           >
-            <View style={styles.networkDot} />
+            <View style={[styles.networkDot, selectedNetwork === net.key && styles.networkDotActive]} />
             <Text style={styles.networkLabel}>{net.label}</Text>
           </TouchableOpacity>
         ))}
@@ -104,11 +90,8 @@ const SubscriptionScreen: React.FC = () => {
         {network && (
           <View style={styles.paymentInfo}>
             <Text style={styles.merchantLabel}>Numéro marchand</Text>
-            <TouchableOpacity
-              style={styles.merchantRow}
-              onPress={() => handleCopy(network.merchantNumber)}
-            >
-              <Text style={styles.merchantNumber}>{network.merchantNumber}</Text>
+            <TouchableOpacity style={styles.merchantRow} onPress={() => handleCopy(network.merchantNumber)}>
+              <Text style={styles.merchantNumber}>{network.merchantNumber || '—'}</Text>
               <Text style={styles.copyText}>{copied ? 'Copié!' : 'Copier'}</Text>
             </TouchableOpacity>
             <View style={styles.instructionsBox}>
@@ -123,96 +106,78 @@ const SubscriptionScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  headerTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
-  headerSubtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textLight,
-    marginTop: spacing.xs,
-  },
-  scroll: {
-    padding: spacing.md,
-    paddingBottom: 100,
-  },
-  planCard: {
-    backgroundColor: colors.cardBackground,
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { padding: spacing.md, paddingBottom: 100 },
+  emptyPlansBox: {
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
     alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  planName: {
+  emptyPlansTitle: {
     fontSize: fontSize.md,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
   },
-  planPrice: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  planDesc: {
+  emptyPlansText: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginTop: spacing.xs,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   sectionTitle: {
     fontSize: fontSize.md,
-    fontWeight: '600',
-    color: colors.textLight,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginTop: spacing.lg,
     marginBottom: spacing.xs,
   },
   sectionSubtitle: {
     fontSize: fontSize.sm,
     color: colors.textLight,
-    opacity: 0.7,
     marginBottom: spacing.md,
   },
   networkCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
   networkCardActive: {
-    borderColor: colors.accent,
+    borderColor: colors.primary,
   },
   networkDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.border,
     marginRight: spacing.sm,
+  },
+  networkDotActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   networkLabel: {
     fontSize: fontSize.md,
-    color: colors.white,
+    color: colors.text,
     fontWeight: '500',
   },
   paymentInfo: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     marginTop: spacing.md,
   },
@@ -227,23 +192,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
   merchantNumber: {
     fontSize: fontSize.lg,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.primary,
     letterSpacing: 1,
   },
   copyText: {
     fontSize: fontSize.sm,
-    color: colors.accent,
+    color: colors.primary,
     fontWeight: '600',
   },
   instructionsBox: {
-    backgroundColor: colors.warningLight,
+    backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
   },
   instructionFr: {

@@ -34,10 +34,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
       onLogin();
     } catch (err: any) {
       console.error('Login error:', err);
-      const msg = err?.response?.data?.detail 
-        || err?.response?.data?.message 
-        || err?.message 
-        || 'Impossible de se connecter. Veuillez vérifier vos identifiants.';
+      const msg = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Impossible de se connecter.';
       Alert.alert('Erreur de connexion', msg);
     } finally {
       setLoading(false);
@@ -51,19 +51,22 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
+          <View style={styles.logoBox}>
+            <Ionicons name="grid" size={40} color={colors.primary} />
+          </View>
           <Text style={styles.appName}>Panoptes-x</Text>
-          <Text style={styles.tagline}>Comptabilité automatisée pour agents Mobile Money</Text>
+          <Text style={styles.tagline}>Console de pilotage financier</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Connexion</Text>
 
           <View style={styles.inputGroup}>
-            <Ionicons name="person-outline" size={18} color="#888" style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Email, téléphone ou WhatsApp"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textLight}
               autoCapitalize="none"
               value={identifier}
               onChangeText={setIdentifier}
@@ -73,12 +76,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
             <TextInput
               ref={pwdRef}
               style={[styles.input, { paddingRight: 40 }]}
               placeholder="Mot de passe"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textLight}
               secureTextEntry={!showPwd}
               value={password}
               onChangeText={setPassword}
@@ -86,7 +89,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
               onSubmitEditing={handleLogin}
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPwd(!showPwd)} activeOpacity={0.7}>
-              <Ionicons name={showPwd ? 'eye-outline' : 'eye-off-outline'} size={20} color="#888" />
+              <Ionicons name={showPwd ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textLight} />
             </TouchableOpacity>
           </View>
 
@@ -97,7 +100,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.background} />
             ) : (
               <Text style={styles.loginButtonText}>Se connecter</Text>
             )}
@@ -116,97 +119,71 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f4f7',
-  },
-  scroll: {
-    flexGrow: 1,
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
+  header: { alignItems: 'center', marginBottom: spacing.xl },
+  logoBox: {
+    width: 72,
+    height: 72,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.md,
   },
   appName: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1a3a5c',
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: 1.5,
   },
   tagline: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: spacing.xs,
     paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#222',
-    marginBottom: 20,
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.lg,
   },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fb',
-    borderRadius: 10,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    borderColor: '#e0e4e8',
-    marginBottom: 14,
-    paddingHorizontal: 14,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
   },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#222',
-  },
-  eyeButton: {
-    padding: 6,
-  },
+  inputIcon: { marginRight: spacing.sm },
+  input: { flex: 1, paddingVertical: spacing.md - 2, fontSize: 15, color: colors.text },
+  eyeButton: { padding: 6 },
   loginButton: {
-    backgroundColor: '#1a3a5c',
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.md - 2,
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: spacing.sm,
   },
-  loginButtonDisabled: {
-    opacity: 0.45,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  registerLink: {
-    alignItems: 'center',
-    marginTop: 20,
-    padding: 8,
-  },
-  registerText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  registerHighlight: {
-    color: '#1a3a5c',
-    fontWeight: '600',
-  },
+  loginButtonDisabled: { opacity: 0.45 },
+  loginButtonText: { color: colors.background, fontWeight: '700', fontSize: fontSize.md },
+  registerLink: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.sm },
+  registerText: { fontSize: 14, color: colors.textSecondary },
+  registerHighlight: { color: colors.primary, fontWeight: '600' },
 });
 
 export default AuthScreen;

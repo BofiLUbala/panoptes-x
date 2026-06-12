@@ -95,13 +95,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
     } catch (err: any) {
       console.error('Register error:', err?.message, err?.code, err?.response?.status);
       try {
-        const msg = err?.response?.data?.message
-          || err?.message
-          || 'Erreur lors de l\'inscription.';
+        const msg = err?.response?.data?.message || err?.message || 'Erreur lors de l\'inscription.';
         setErrorMsg(msg);
         Alert.alert('Erreur', msg);
       } catch (_) {
-        setErrorMsg('Erreur inconnue. Voir console.');
+        setErrorMsg('Erreur inconnue.');
       }
     } finally {
       setLoading(false);
@@ -109,13 +107,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color="#1a3a5c" />
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
         </TouchableOpacity>
 
         <Text style={styles.title}>Créer un compte</Text>
@@ -131,11 +126,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
                 onPress={() => setServiceProfile(profile.key)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={profile.icon}
-                  size={16}
-                  color={serviceProfile === profile.key ? colors.white : colors.primary}
-                />
+                <Ionicons name={profile.icon} size={16} color={serviceProfile === profile.key ? colors.background : colors.textSecondary} />
                 <Text style={[styles.profileText, serviceProfile === profile.key && styles.profileTextActive]}>
                   {profile.label}
                 </Text>
@@ -143,6 +134,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
             ))}
           </View>
         </View>
+
         <View style={styles.card}>
           <View style={styles.tabRow}>
             {TABS.map((t) => (
@@ -152,25 +144,19 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
                 onPress={() => setTab(t.key)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={t.icon}
-                  size={15}
-                  color={tab === t.key ? '#1a3a5c' : '#999'}
-                />
-                <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>
-                  {t.label}
-                </Text>
+                <Ionicons name={t.icon} size={15} color={tab === t.key ? colors.primary : colors.textLight} />
+                <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {tab === 'email' && (
             <View style={styles.inputGroup}>
-              <Ionicons name="mail-outline" size={18} color="#888" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Adresse email"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.textLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -188,7 +174,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
                 <TextInput
                   style={styles.input}
                   placeholder="+243 XX XXX XXXX"
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={colors.textLight}
                   keyboardType="phone-pad"
                   value={whatsapp}
                   onChangeText={setWhatsapp}
@@ -201,12 +187,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
           )}
 
           <View style={styles.inputGroup}>
-            <Ionicons name="person-outline" size={18} color="#888" style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
             <TextInput
               ref={userRef}
               style={styles.input}
               placeholder="Nom d'utilisateur"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textLight}
               value={username}
               onChangeText={setUsername}
               returnKeyType="next"
@@ -215,12 +201,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
           </View>
 
           <View style={styles.inputGroup}>
-            <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
             <TextInput
               ref={pwdRef}
               style={[styles.input, { paddingRight: 40 }]}
               placeholder="Mot de passe"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textLight}
               secureTextEntry={!showPwd}
               value={password}
               onChangeText={setPassword}
@@ -228,7 +214,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
               onSubmitEditing={() => confirmRef.current?.focus()}
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPwd(!showPwd)} activeOpacity={0.7}>
-              <Ionicons name={showPwd ? 'eye-outline' : 'eye-off-outline'} size={20} color="#888" />
+              <Ionicons name={showPwd ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textLight} />
             </TouchableOpacity>
           </View>
 
@@ -238,45 +224,39 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
                 const ok = c.test(password);
                 return (
                   <View key={c.key} style={styles.checkRow}>
-                    <Ionicons
-                      name={ok ? 'checkmark-circle' : 'close-circle'}
-                      size={15}
-                      color={ok ? '#2e7d32' : '#c62828'}
-                    />
-                    <Text style={[styles.checkLabel, { color: ok ? '#2e7d32' : '#c62828' }]}>
-                      {c.label}
-                    </Text>
+                    <Ionicons name={ok ? 'checkmark-circle' : 'close-circle'} size={15} color={ok ? colors.success : colors.warning} />
+                    <Text style={[styles.checkLabel, { color: ok ? colors.success : colors.warning }]}>{c.label}</Text>
                   </View>
                 );
               })}
             </View>
           )}
 
-          <View style={[styles.inputGroup, confirmTouched && { borderColor: passwordsMatch ? '#2e7d32' : '#c62828' }]}>
-            <Ionicons name="lock-open-outline" size={18} color="#888" style={styles.inputIcon} />
+          <View style={[styles.inputGroup, confirmTouched && { borderColor: passwordsMatch ? colors.success : colors.warning }]}>
+            <Ionicons name="lock-open-outline" size={18} color={colors.textLight} style={styles.inputIcon} />
             <TextInput
               ref={confirmRef}
               style={[styles.input, { paddingRight: 40 }]}
               placeholder="Confirmer le mot de passe"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textLight}
               secureTextEntry={!showConfirm}
               value={confirmPassword}
               onChangeText={(v) => { setConfirmPassword(v); if (!confirmTouched) setConfirmTouched(true); }}
               returnKeyType="done"
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirm(!showConfirm)} activeOpacity={0.7}>
-              <Ionicons name={showConfirm ? 'eye-outline' : 'eye-off-outline'} size={20} color="#888" />
+              <Ionicons name={showConfirm ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textLight} />
             </TouchableOpacity>
           </View>
           {confirmTouched && (
-            <Text style={[styles.matchText, { color: passwordsMatch ? '#2e7d32' : '#c62828' }]}>
+            <Text style={[styles.matchText, { color: passwordsMatch ? colors.success : colors.warning }]}>
               {passwordsMatch ? '✓ Mots de passe identiques' : '✗ Les mots de passe ne correspondent pas'}
             </Text>
           )}
 
           {errorMsg ? (
             <View style={styles.errorBox}>
-              <Ionicons name="warning" size={16} color="#c62828" />
+              <Ionicons name="warning" size={16} color={colors.warning} />
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           ) : null}
@@ -288,7 +268,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.background} />
             ) : (
               <Text style={styles.submitText}>Créer mon compte</Text>
             )}
@@ -306,119 +286,83 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f4f7' },
-  scroll: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  backButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e8ecf0', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: '700', color: '#222' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 20 },
-  profileSelector: {
-    marginBottom: 20,
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { padding: spacing.lg, paddingTop: 60, paddingBottom: 40 },
+  backButton: {
+    width: 36, height: 36, borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
   },
-  selectorLabel: {
-    fontSize: 13,
-    color: '#444',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  title: { fontSize: 22, fontWeight: '800', color: colors.white },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 4, marginBottom: spacing.lg },
+  profileSelector: { marginBottom: spacing.lg },
+  selectorLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: spacing.sm },
+  profileRow: { flexDirection: 'row', gap: spacing.sm },
   profileTab: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e4e8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 8,
+    flex: 1, minHeight: 46, borderRadius: borderRadius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center', gap: 6, padding: spacing.sm,
   },
-  profileTabActive: {
-    backgroundColor: '#e8f5e9',
-    borderColor: '#2e7d32',
-  },
-  profileText: {
-    fontSize: 12,
-    color: '#1a3a5c',
-    fontWeight: '600',
-  },
-  profileTextActive: {
-    color: '#2e7d32',
-  },
+  profileTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  profileText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  profileTextActive: { color: colors.background },
   errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffebee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.surface, borderRadius: borderRadius.sm,
+    borderWidth: 1, borderColor: colors.warning,
+    padding: spacing.md, marginBottom: spacing.md, gap: spacing.sm,
   },
-  errorText: {
-    fontSize: 13,
-    color: '#c62828',
-    flex: 1,
-  },
+  errorText: { fontSize: 13, color: colors.warning, flex: 1 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.lg,
   },
-  tabRow: { flexDirection: 'row', marginBottom: 20, gap: 10 },
+  tabRow: { flexDirection: 'row', marginBottom: spacing.lg, gap: spacing.sm },
   tab: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#f8f9fb',
-    borderWidth: 1,
-    borderColor: '#e0e4e8',
+    flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 6, paddingVertical: 10, borderRadius: borderRadius.sm,
+    backgroundColor: colors.background,
+    borderWidth: 1, borderColor: colors.border,
   },
-  tabActive: { backgroundColor: '#e8f0fe', borderColor: '#1a3a5c' },
-  tabText: { fontSize: 13, color: '#888', fontWeight: '600' },
-  tabTextActive: { color: '#1a3a5c' },
+  tabActive: { backgroundColor: colors.surface, borderColor: colors.primary },
+  tabText: { fontSize: 13, color: colors.textLight, fontWeight: '600' },
+  tabTextActive: { color: colors.primary },
   inputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fb',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e0e4e8',
-    marginBottom: 14,
-    paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1, borderColor: colors.border,
+    marginBottom: spacing.md, paddingHorizontal: spacing.md,
   },
-  inputIcon: { marginRight: 10 },
-  input: { flex: 1, paddingVertical: 14, fontSize: 15, color: '#222' },
+  inputIcon: { marginRight: spacing.sm },
+  input: { flex: 1, paddingVertical: spacing.md - 2, fontSize: 15, color: colors.text },
   eyeButton: { padding: 6 },
-  hint: { fontSize: 12, color: '#888', marginTop: -10, marginBottom: 14, fontStyle: 'italic' },
-  checklist: { marginBottom: 14, backgroundColor: '#f8f9fb', borderRadius: 10, padding: 12 },
+  hint: { fontSize: 12, color: colors.textLight, marginTop: -10, marginBottom: spacing.md, fontStyle: 'italic' },
+  checklist: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md,
+  },
   checkRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 3 },
-  checkLabel: { fontSize: 13, marginLeft: 8 },
-  matchText: { fontSize: 13, marginTop: -10, marginBottom: 14 },
+  checkLabel: { fontSize: 13, marginLeft: spacing.sm },
+  matchText: { fontSize: 13, marginTop: -10, marginBottom: spacing.md },
   submitButton: {
-    backgroundColor: '#1a3a5c',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 6,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.md - 2,
+    alignItems: 'center', marginTop: spacing.sm,
   },
   submitDisabled: { opacity: 0.45 },
-  submitText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  loginLink: { alignItems: 'center', marginTop: 20, padding: 8 },
-  loginText: { fontSize: 14, color: '#666' },
-  loginHighlight: { color: '#1a3a5c', fontWeight: '600' },
+  submitText: { color: colors.background, fontWeight: '700', fontSize: fontSize.md },
+  loginLink: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.sm },
+  loginText: { fontSize: 14, color: colors.textSecondary },
+  loginHighlight: { color: colors.primary, fontWeight: '600' },
 });
 
 export default RegisterScreen;
-

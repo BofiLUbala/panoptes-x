@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import AppHeader from '../components/AppHeader';
 import { TransactionType, Operator } from '../types';
 
 type Filter = 'ALL' | TransactionType | Operator;
@@ -23,119 +25,55 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: Operator.AFRICELL, label: 'Africell' },
 ];
 
-const mockTransactions = [
-  {
-    id: '1',
-    type: TransactionType.MOBILE_MONEY,
-    operator: Operator.ORANGE,
-    amount: 5000,
-    commission: 50,
-    timestamp: '2026-06-11T10:30:00',
-    rawSms:
-      'Depot de 5000 CDF sur votre compte Orange Money. Nouveau solde: 45000 CDF. Merci.',
-  },
-  {
-    id: '2',
-    type: TransactionType.BUNDLE,
-    operator: Operator.AIRTEL,
-    volume: 2,
-    volumeUnit: 'GB',
-    amount: 3000,
-    commission: 150,
-    timestamp: '2026-06-11T09:15:00',
-    rawSms:
-      'Vous avez active le forfait Maxi 2 GB. Valable 30 jours. Montant: 3000 CDF.',
-  },
-  {
-    id: '3',
-    type: TransactionType.AIRTIME,
-    operator: Operator.VODACOM,
-    amount: 1000,
-    commission: 30,
-    timestamp: '2026-06-10T18:45:00',
-    rawSms:
-      'Recharge effectuee de 1000 CDF sur le numero +243812345678. Nouveau solde: 50 USD.',
-  },
-  {
-    id: '4',
-    type: TransactionType.MOBILE_MONEY,
-    operator: Operator.AIRTEL,
-    amount: 25000,
-    commission: 250,
-    timestamp: '2026-06-10T14:20:00',
-    rawSms:
-      'Retrait de 25000 CDF. Frais: 250 CDF. Solde: 12500 CDF. Airtel Money.',
-  },
-  {
-    id: '5',
-    type: TransactionType.BUNDLE,
-    operator: Operator.ORANGE,
-    volume: 500,
-    volumeUnit: 'MB',
-    amount: 1500,
-    commission: 75,
-    timestamp: '2026-06-09T08:00:00',
-    rawSms:
-      'Vous avez recu 500 MB. Forfait Internet Orange. Valable 7 jours.',
-  },
-];
-
 function getTypeLabel(type: TransactionType): string {
   switch (type) {
-    case TransactionType.MOBILE_MONEY:
-      return 'Mobile Money';
-    case TransactionType.AIRTIME:
-      return 'Unités';
-    case TransactionType.BUNDLE:
-      return 'Mégas/Internet';
-    case TransactionType.BILL_PAYMENT:
-      return 'Facture';
+    case TransactionType.MOBILE_MONEY: return 'Mobile Money';
+    case TransactionType.AIRTIME: return 'Unités';
+    case TransactionType.BUNDLE: return 'Mégas/Internet';
+    case TransactionType.BILL_PAYMENT: return 'Facture';
   }
 }
 
 function getTypeColor(type: TransactionType): string {
   switch (type) {
-    case TransactionType.MOBILE_MONEY:
-      return colors.accent;
-    case TransactionType.AIRTIME:
-      return colors.warning;
-    case TransactionType.BUNDLE:
-      return colors.success;
-    case TransactionType.BILL_PAYMENT:
-      return colors.danger;
+    case TransactionType.MOBILE_MONEY: return colors.primary;
+    case TransactionType.AIRTIME: return colors.warning;
+    case TransactionType.BUNDLE: return colors.success;
+    case TransactionType.BILL_PAYMENT: return colors.danger;
   }
 }
 
 function getOperatorColor(operator: Operator): string {
   switch (operator) {
-    case Operator.ORANGE:
-      return '#FF7900';
-    case Operator.AIRTEL:
-      return '#E11B22';
-    case Operator.VODACOM:
-      return '#00A94F';
-    case Operator.AFRICELL:
-      return '#ED1C24';
+    case Operator.ORANGE: return '#FF7900';
+    case Operator.AIRTEL: return '#E11B22';
+    case Operator.VODACOM: return '#00A94F';
+    case Operator.AFRICELL: return '#ED1C24';
   }
 }
 
+interface HistoryTransaction {
+  id: string;
+  type: TransactionType;
+  operator: Operator;
+  amount?: number;
+  commission?: number;
+  volume?: number;
+  volumeUnit?: string;
+  timestamp: string;
+  rawSms: string;
+}
+
 const TransactionItem: React.FC<{
-  tx: (typeof mockTransactions)[0];
+  tx: HistoryTransaction;
   onPress: () => void;
 }> = ({ tx, onPress }) => (
   <TouchableOpacity style={styles.txItem} onPress={onPress} activeOpacity={0.7}>
     <View style={styles.txLeft}>
-      <View
-        style={[
-          styles.txDot,
-          { backgroundColor: getTypeColor(tx.type) },
-        ]}
-      />
+      <View style={[styles.txDot, { backgroundColor: getTypeColor(tx.type) }]} />
       <View>
         <Text style={styles.txType}>{getTypeLabel(tx.type)}</Text>
-        <Text style={styles.txOperator}>
-          {tx.operator}
-        </Text>
+        <Text style={styles.txOperator}>{tx.operator}</Text>
       </View>
     </View>
     <View style={styles.txRight}>
@@ -151,41 +89,26 @@ const TransactionItem: React.FC<{
 
 const HistoryScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
-  const [selectedTx, setSelectedTx] = useState<(typeof mockTransactions)[0] | null>(null);
+  const [transactions] = useState<HistoryTransaction[]>([]);
+  const [selectedTx, setSelectedTx] = useState<HistoryTransaction | null>(null);
 
   const filteredTransactions =
     activeFilter === 'ALL'
-      ? mockTransactions
-      : mockTransactions.filter(
-          (tx) =>
-            tx.type === activeFilter || tx.operator === activeFilter
-        );
+      ? transactions
+      : transactions.filter((tx) => tx.type === activeFilter || tx.operator === activeFilter);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Historique</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredTransactions.length} transactions
-        </Text>
-      </View>
+      <AppHeader title="Historique" subtitle={`${filteredTransactions.length} transactions`} />
 
       <ScrollView horizontal style={styles.filterRow} showsHorizontalScrollIndicator={false}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[
-              styles.chip,
-              activeFilter === f.key && styles.chipActive,
-            ]}
+            style={[styles.chip, activeFilter === f.key && styles.chipActive]}
             onPress={() => setActiveFilter(f.key)}
           >
-            <Text
-              style={[
-                styles.chipText,
-                activeFilter === f.key && styles.chipTextActive,
-              ]}
-            >
+            <Text style={[styles.chipText, activeFilter === f.key && styles.chipTextActive]}>
               {f.label}
             </Text>
           </TouchableOpacity>
@@ -194,11 +117,7 @@ const HistoryScreen: React.FC = () => {
 
       <ScrollView style={styles.list}>
         {filteredTransactions.map((tx) => (
-          <TransactionItem
-            key={tx.id}
-            tx={tx}
-            onPress={() => setSelectedTx(tx)}
-          />
+          <TransactionItem key={tx.id} tx={tx} onPress={() => setSelectedTx(tx)} />
         ))}
       </ScrollView>
 
@@ -216,15 +135,8 @@ const HistoryScreen: React.FC = () => {
               <>
                 <View style={styles.sheetRow}>
                   <Text style={styles.sheetLabel}>Type</Text>
-                  <View
-                    style={[
-                      styles.sheetBadge,
-                      { backgroundColor: getTypeColor(selectedTx.type) },
-                    ]}
-                  >
-                    <Text style={styles.sheetBadgeText}>
-                      {getTypeLabel(selectedTx.type)}
-                    </Text>
+                  <View style={[styles.sheetBadge, { backgroundColor: getTypeColor(selectedTx.type) }]}>
+                    <Text style={styles.sheetBadgeText}>{getTypeLabel(selectedTx.type)}</Text>
                   </View>
                 </View>
                 <View style={styles.sheetRow}>
@@ -234,9 +146,7 @@ const HistoryScreen: React.FC = () => {
                 {selectedTx.amount && (
                   <View style={styles.sheetRow}>
                     <Text style={styles.sheetLabel}>Montant</Text>
-                    <Text style={styles.sheetValue}>
-                      {selectedTx.amount.toLocaleString()} CDF
-                    </Text>
+                    <Text style={styles.sheetValue}>{selectedTx.amount.toLocaleString()} CDF</Text>
                   </View>
                 )}
                 {selectedTx.commission && (
@@ -252,10 +162,7 @@ const HistoryScreen: React.FC = () => {
                 <View style={styles.sheetSmsBox}>
                   <Text style={styles.sheetSmsText}>{selectedTx.rawSms}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setSelectedTx(null)}
-                >
+                <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedTx(null)}>
                   <Text style={styles.closeButtonText}>Fermer</Text>
                 </TouchableOpacity>
               </>
@@ -268,25 +175,7 @@ const HistoryScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  headerTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: 'bold',
-    color: colors.white,
-  },
-  headerSubtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textLight,
-    marginTop: spacing.xs,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   filterRow: {
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
@@ -295,33 +184,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 20,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginRight: spacing.sm,
   },
   chipActive: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipText: {
     fontSize: fontSize.sm,
-    color: colors.textLight,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   chipTextActive: {
-    color: colors.primary,
+    color: colors.background,
+    fontWeight: '700',
   },
   list: {
     flex: 1,
-    backgroundColor: colors.background,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
     padding: spacing.md,
   },
   txItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -363,9 +258,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderBottomWidth: 0,
     padding: spacing.lg,
     paddingBottom: 40,
   },
@@ -421,6 +319,8 @@ const styles = StyleSheet.create({
   sheetSmsBox: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
@@ -436,8 +336,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeButtonText: {
-    color: colors.white,
-    fontWeight: '600',
+    color: colors.background,
+    fontWeight: '700',
     fontSize: fontSize.md,
   },
 });

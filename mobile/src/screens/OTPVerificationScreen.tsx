@@ -26,7 +26,6 @@ const DIGIT_COUNT = 6;
 const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({ whatsappNumber, onBack, onVerified }) => {
   const [digits, setDigits] = useState<string[]>(Array(DIGIT_COUNT).fill(''));
   const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(30);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const otpCode = digits.join('');
@@ -72,13 +71,10 @@ const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({ whatsappN
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={colors.white} />
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
         </TouchableOpacity>
 
         <View style={styles.header}>
@@ -117,7 +113,7 @@ const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({ whatsappN
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.background} />
             ) : (
               <Text style={styles.verifyText}>Vérifier mon compte</Text>
             )}
@@ -134,36 +130,29 @@ const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({ whatsappN
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F2440' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingTop: 60, paddingBottom: 40 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: spacing.lg },
+  backButton: {
+    width: 40, height: 40, borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.lg,
+  },
   header: { alignItems: 'center', marginBottom: spacing.xl },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#E8F8E8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.surface,
+    borderWidth: 2, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
   },
   title: { fontSize: fontSize.lg, fontWeight: '800', color: colors.white },
-  subtitle: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: spacing.sm, lineHeight: 22 },
+  subtitle: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 22 },
   number: { fontWeight: '700', color: '#25D366' },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
     padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
     alignItems: 'center',
   },
   digitRow: {
@@ -172,37 +161,26 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   digitBox: {
-    width: 48,
-    height: 56,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    width: 48, height: 56,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1.5, borderColor: colors.border,
     backgroundColor: colors.background,
     textAlign: 'center',
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 24, fontWeight: '700', color: colors.text,
   },
   digitFilled: {
-    borderColor: '#1A3A5C',
-    backgroundColor: '#E8F0FE',
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   verifyButton: {
-    backgroundColor: '#25D366',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    width: '100%',
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
+    alignItems: 'center', width: '100%',
   },
   verifyDisabled: { opacity: 0.5 },
-  verifyText: { color: colors.white, fontWeight: '700', fontSize: fontSize.md },
-  hint: { marginTop: spacing.md, fontSize: fontSize.xs, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
+  verifyText: { color: colors.background, fontWeight: '700', fontSize: fontSize.md },
+  hint: { marginTop: spacing.md, fontSize: fontSize.xs, color: colors.textLight, textAlign: 'center', lineHeight: 18 },
 });
 
 export default OTPVerificationScreen;
