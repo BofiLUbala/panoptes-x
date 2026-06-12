@@ -1,87 +1,88 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DrawerProvider } from './src/contexts/DrawerContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
-import { colors } from './src/constants/theme';
 import { api } from './src/services/api';
+import { simStore } from './src/services/simStore';
 
-const App: React.FC = () => {
-  const [appState, setAppState] = useState<
-    'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main'
-  >('onboarding');
+type AppState = 'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main';
+
+const AppContent: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const [appState, setAppState] = useState<AppState>('onboarding');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
 
   useEffect(() => {
+    simStore.loadSims();
     const unsubscribe = api.onLogout(() => {
       setAppState('auth');
     });
     return unsubscribe;
   }, []);
-  const [whatsappNumber, setWhatsappNumber] = useState('');
 
-  if (appState === 'onboarding') {
-    return (
-      <>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-        <OnboardingScreen onComplete={() => setAppState('auth')} />
-      </>
-    );
-  }
-
-  if (appState === 'register') {
-    return (
-      <>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-        <RegisterScreen
-          onBack={() => setAppState('auth')}
-          onSuccess={() => setAppState('auth')}
-          onWhatsappRegister={(number) => {
-            setWhatsappNumber(number);
-            setAppState('otp-verify');
-          }}
-        />
-      </>
-    );
-  }
-
-  if (appState === 'otp-verify') {
-    return (
-      <>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-        <OTPVerificationScreen
-          whatsappNumber={whatsappNumber}
-          onBack={() => setAppState('register')}
-          onVerified={() => setAppState('main')}
-        />
-      </>
-    );
-  }
-
-  if (appState === 'auth') {
-    return (
-      <>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-        <AuthScreen
-          onLogin={() => setAppState('main')}
-          onRegister={() => setAppState('register')}
-        />
-      </>
-    );
-  }
+  const renderScreen = () => {
+    switch (appState) {
+      case 'onboarding':
+        return <OnboardingScreen onComplete={() => setAppState('auth')} />;
+      case 'register':
+        return (
+          <RegisterScreen
+            onBack={() => setAppState('auth')}
+            onSuccess={() => setAppState('auth')}
+            onWhatsappRegister={(number: string) => {
+              setWhatsappNumber(number);
+              setAppState('otp-verify');
+            }}
+          />
+        );
+      case 'otp-verify':
+        return (
+          <OTPVerificationScreen
+            whatsappNumber={whatsappNumber}
+            onBack={() => setAppState('register')}
+            onVerified={() => setAppState('main')}
+          />
+        );
+      case 'auth':
+        return (
+          <AuthScreen
+            onLogin={() => setAppState('main')}
+            onRegister={() => setAppState('register')}
+          />
+        );
+      case 'main':
+        return (
+          <DrawerProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </DrawerProvider>
+        );
+    }
+  };
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <DrawerProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      </DrawerProvider>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      {renderScreen()}
     </>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 };
 

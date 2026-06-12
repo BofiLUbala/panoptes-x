@@ -32,30 +32,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.left}>
-        <TouchableOpacity onPress={open} style={styles.menuButton} activeOpacity={0.7}>
-          <Ionicons name="menu" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <AppLogo size={36} style={styles.logo} />
-        <View style={styles.brandGroup}>
-          <Text style={styles.brandName}>Panoptes-x</Text>
-          {title && <Text style={styles.brandTitle}>{title}</Text>}
+      <TouchableOpacity onPress={open} style={styles.menuButton} activeOpacity={0.7}>
+        <Ionicons name="menu" size={24} color={colors.primary} />
+      </TouchableOpacity>
+
+      <View style={styles.center}>
+        <View style={styles.logoCircle}>
+          <AppLogo size={20} />
         </View>
+        <Text style={styles.brandName}>PANOPTES-X</Text>
       </View>
 
-      <View style={styles.right}>
-        {statusIndicators.map((indicator) => (
-          <View key={indicator.label} style={styles.statusItem}>
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: indicator.active ? indicator.color : colors.textLight },
-              ]}
-            />
-            {subtitle && <Text style={styles.statusLabel}>{indicator.label}</Text>}
-          </View>
-        ))}
-      </View>
+      <TouchableOpacity style={styles.menuButton} activeOpacity={0.7}>
+        <Ionicons name="ellipsis-horizontal" size={20} color={colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -72,11 +62,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   menuButton: {
     width: 36,
     height: 36,
@@ -86,43 +71,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logo: {
-    marginLeft: spacing.xs,
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
-  brandGroup: {
-    flexDirection: 'column',
+  logoCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   brandName: {
     fontSize: fontSize.md,
     fontWeight: '800',
     color: colors.white,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   brandTitle: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: -1,
-  },
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusLabel: {
     fontSize: 9,
-    color: colors.textLight,
+    color: colors.textSecondary,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginTop: 2,
   },
 });
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View,
@@ -11,14 +12,18 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { useDrawer } from '../contexts/DrawerContext';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SIMScreen from '../screens/SIMScreen';
 import NavigationDrawer from '../components/NavigationDrawer';
+import CountryCodePicker from '../components/CountryCodePicker';
 import { simStore } from '../services/simStore';
+import { api } from '../services/api';
 import { Operator, SimService } from '../types';
 
 const Tab = createBottomTabNavigator();
@@ -49,10 +54,15 @@ const SERVICE_OPTIONS: { key: SimService; label: string; icon: keyof typeof Ioni
 type Step = 'menu' | 'pickOperator' | 'enterCount' | 'enterNumbers' | 'pickServices' | 'confirm';
 
 const AppNavigator: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const drawer = useDrawer();
   const [serviceModalVisible, setServiceModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [step, setStep] = useState<Step>('menu');
   const [selectedOp, setSelectedOp] = useState<Operator | null>(null);
   const [simCount, setSimCount] = useState('');
+  const [countryCode, setCountryCode] = useState('+243');
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<SimService[]>([]);
 
@@ -80,30 +90,29 @@ const AppNavigator: React.FC = () => {
   const updatePhoneNumber = (index: number, value: string) => {
     setPhoneNumbers((prev) => {
       const updated = [...prev];
-      // Force the prefix to be +243 and only allow numeric characters after it
-      let digits = value.slice(4).replace(/\D/g, '');
-      updated[index] = '+243' + digits;
+      updated[index] = value.replace(/\D/g, '');
       return updated;
     });
   };
 
   const handleConfirm = () => {
     if (!selectedOp) return;
-    const invalid = phoneNumbers.some((n) => n.trim().length < 13);
+    const invalid = phoneNumbers.some((n) => n.trim().length < 9);
     if (invalid) {
       Alert.alert(
         'Erreur',
-        'Veuillez saisir un numéro valide composé de 9 chiffres après l\'indicatif +243.'
+        'Veuillez saisir un numéro valide composé d\'au moins 9 chiffres.'
       );
       return;
     }
 
-    simStore.addSims(selectedOp, phoneNumbers, selectedServices);
+    const finalNumbers = phoneNumbers.map((n) => countryCode + n);
+    simStore.addSims(selectedOp, finalNumbers, selectedServices);
     Alert.alert(
       'Succès',
       `${phoneNumbers.length} SIM(s) ${selectedOpInfo?.label} ajoutée(s) avec ${selectedServices.length} service(s) !`
     );
-    closeModal();
+    resetModal();
   };
 
   const drawerItems = [
@@ -118,7 +127,9 @@ const AppNavigator: React.FC = () => {
     {
       icon: 'settings-outline' as const,
       label: 'Paramètres',
-      onPress: () => {},
+      onPress: () => {
+        setSettingsModalVisible(true);
+      },
     },
   ];
 
@@ -194,8 +205,8 @@ const AppNavigator: React.FC = () => {
                   Alert.alert('Erreur', 'Veuillez saisir un nombre valide.');
                   return;
                 }
-                // Initialize empty phone number fields with prefix +243
-                setPhoneNumbers(Array(c).fill('+243'));
+                // Initialize empty phone number fields
+                setPhoneNumbers(Array(c).fill(''));
                 setStep('enterNumbers');
               }}
               disabled={!simCount || parseInt(simCount) < 1}
@@ -217,6 +228,10 @@ const AppNavigator: React.FC = () => {
             <Text style={styles.stepSubtitle}>
               Saisissez le numéro de chaque SIM {selectedOpInfo?.label}
             </Text>
+            <View style={{ alignSelf: 'stretch', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs, fontWeight: '600' }}>Indicatif global</Text>
+              <CountryCodePicker selectedCode={countryCode} onSelectCode={setCountryCode} />
+            </View>
             <View style={styles.phoneNumbersList}>
               {phoneNumbers.map((num, idx) => (
                 <View key={idx} style={styles.phoneInputRow}>
@@ -225,28 +240,28 @@ const AppNavigator: React.FC = () => {
                   </View>
                   <TextInput
                     style={styles.phoneInput}
-                    placeholder="+243 XX XXX XXXX"
+                    placeholder="XX XXX XXXX"
                     placeholderTextColor="#64748B"
                     keyboardType="phone-pad"
                     value={num}
                     onChangeText={(val) => updatePhoneNumber(idx, val)}
                     autoFocus={idx === 0}
-                    maxLength={13}
+                    maxLength={10}
                   />
                 </View>
               ))}
             </View>
             <TouchableOpacity
-              style={[styles.nextBtn, phoneNumbers.some((n) => n.trim().length < 13) && styles.nextBtnDisabled]}
+              style={[styles.nextBtn, phoneNumbers.some((n) => n.trim().length < 9) && styles.nextBtnDisabled]}
               onPress={() => {
-                const invalid = phoneNumbers.some((n) => n.trim().length < 13);
+                const invalid = phoneNumbers.some((n) => n.trim().length < 9);
                 if (invalid) {
-                  Alert.alert('Erreur', 'Veuillez saisir un numéro valide composé de 9 chiffres après l\'indicatif +243.');
+                  Alert.alert('Erreur', 'Veuillez saisir un numéro valide composé d\'au moins 9 chiffres.');
                   return;
                 }
                 setStep('pickServices');
               }}
-              disabled={phoneNumbers.some((n) => n.trim().length < 13)}
+              disabled={phoneNumbers.some((n) => n.trim().length < 9)}
             >
               <Text style={styles.nextBtnText}>Suivant — Choisir les services</Text>
               <Ionicons name="arrow-forward" size={18} color={colors.background} />
@@ -329,8 +344,8 @@ const AppNavigator: React.FC = () => {
             borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingTop: 8,
-            height: 72,
-            paddingBottom: 14,
+            height: 65 + Math.max(insets.bottom, 10),
+            paddingBottom: Math.max(insets.bottom, 10) + 8,
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -385,6 +400,101 @@ const AppNavigator: React.FC = () => {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {renderStepContent()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL: Paramètres */}
+      <Modal
+        visible={settingsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSettingsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Ionicons name="settings-outline" size={22} color={colors.primary} />
+                <Text style={styles.modalTitle}>Param\u00e8tres</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSettingsModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Profil utilisateur */}
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Mon compte</Text>
+                <View style={styles.settingsProfileCard}>
+                  <View style={styles.settingsAvatar}>
+                    <Ionicons name="person" size={28} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingsProfileName}>Utilisateur</Text>
+                    <Text style={styles.settingsProfileSub}>Identifiants enregistr\u00e9s</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Nombre de SIM */}
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Mes SIM</Text>
+                <View style={styles.settingsInfoRow}>
+                  <View style={styles.settingsInfoLeft}>
+                    <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
+                    <Text style={styles.settingsInfoText}>Cartes SIM configur\u00e9es</Text>
+                  </View>
+                  <View style={styles.settingsBadge}>
+                    <Text style={styles.settingsBadgeText}>{simStore.getSims().length}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Options */}
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Pr\u00e9f\u00e9rences</Text>
+                <TouchableOpacity style={styles.settingsMenuItem}>
+                  <View style={styles.settingsInfoLeft}>
+                    <Ionicons name="language-outline" size={20} color="#3b82f6" />
+                    <Text style={styles.settingsInfoText}>Langue</Text>
+                  </View>
+                  <Text style={styles.settingsMenuValue}>Fran\u00e7ais</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.settingsMenuItem}>
+                  <View style={styles.settingsInfoLeft}>
+                    <Ionicons name="moon-outline" size={20} color="#a78bfa" />
+                    <Text style={styles.settingsInfoText}>Mode de lecture</Text>
+                  </View>
+                  <Text style={styles.settingsMenuValue}>Sombre</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Support */}
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Aide</Text>
+                <TouchableOpacity style={styles.settingsMenuItem}>
+                  <View style={styles.settingsInfoLeft}>
+                    <Ionicons name="headset-outline" size={20} color="#06b6d4" />
+                    <Text style={styles.settingsInfoText}>Support IT</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Déconnexion */}
+              <TouchableOpacity
+                style={styles.settingsLogoutBtn}
+                onPress={() => {
+                  setSettingsModalVisible(false);
+                  api.logout();
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+                <Text style={styles.settingsLogoutText}>D\u00e9connexion</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -629,6 +739,103 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
+  },
+  settingsSection: {
+    marginBottom: spacing.md,
+  },
+  settingsSectionTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+  },
+  settingsProfileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  settingsAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsProfileName: {
+    fontSize: fontSize.md,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  settingsProfileSub: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  settingsInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  settingsInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  settingsInfoText: {
+    fontSize: fontSize.sm,
+    color: colors.text,
+  },
+  settingsBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  settingsBadgeText: {
+    fontSize: fontSize.sm,
+    fontWeight: 'bold',
+    color: colors.background,
+  },
+  settingsMenuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  settingsMenuValue: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  settingsLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#ef444415',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  settingsLogoutText: {
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    color: '#ef4444',
   },
 });
 

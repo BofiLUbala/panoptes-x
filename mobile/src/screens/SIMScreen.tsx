@@ -5,11 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Modal,
+  Alert,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { SimCard, SimService, SimTransaction } from '../types';
+import SIMServiceConfig from '../components/SIMServiceConfig';
 import AppHeader from '../components/AppHeader';
 import SIMCardItem from '../components/SIMCardItem';
 import SIMDetailPanel from '../components/SIMDetailPanel';
@@ -61,6 +65,71 @@ const SIMScreen: React.FC = () => {
     simStore.toggleService(selectedSimId, service);
   }, [selectedSimId]);
 
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+  const [editServices, setEditServices] = useState<SimService[]>([]);
+
+  const handleEditSim = () => {
+    if (!selectedSimId || !editPhoneNumber.trim()) return;
+    simStore.updateSim(selectedSimId, editPhoneNumber.trim(), editServices);
+    setEditModalVisible(false);
+    setEditPhoneNumber('');
+    setEditServices([]);
+  };
+
+  const handleToggleEditService = (service: SimService) => {
+    setEditServices((prev) =>
+      prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]
+    );
+  };
+
+  const handleDeleteSim = () => {
+    if (!selectedSimId) return;
+    Alert.alert(
+      'Confirmer la suppression',
+      'Cette action supprimera la carte SIM et tous ses services associés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            simStore.deleteSim(selectedSimId);
+            setSelectedSimId(null);
+            if (!isTablet) setShowDetail(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const renderEditDeleteButtons = () => (
+    <View style={styles.editDeleteRow}>
+      <TouchableOpacity
+        style={styles.editBtn}
+        onPress={() => {
+          if (selectedSim) {
+            setEditPhoneNumber(selectedSim.phoneNumber);
+            setEditServices([]);
+            setEditModalVisible(true);
+          }
+        }}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="create-outline" size={16} color={colors.primary} />
+        <Text style={styles.editBtnText}>Modifier</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={handleDeleteSim}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="trash-outline" size={16} color={colors.danger} />
+        <Text style={styles.deleteBtnText}>Supprimer</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   // Mobile: show detail fullscreen
   if (!isTablet && showDetail && selectedSim) {
     return (
@@ -78,6 +147,7 @@ const SIMScreen: React.FC = () => {
           transactions={transactions}
           onToggleService={handleToggleService}
         />
+        {renderEditDeleteButtons()}
       </View>
     );
   }
@@ -120,11 +190,14 @@ const SIMScreen: React.FC = () => {
         {isTablet && (
           <View style={styles.detailPanel}>
             {selectedSim ? (
-              <SIMDetailPanel
-                sim={selectedSim}
-                transactions={transactions}
-                onToggleService={handleToggleService}
-              />
+              <>
+                <SIMDetailPanel
+                  sim={selectedSim}
+                  transactions={transactions}
+                  onToggleService={handleToggleService}
+                />
+                {renderEditDeleteButtons()}
+              </>
             ) : (
               <View style={styles.emptyDetail}>
                 <Ionicons name="phone-portrait-outline" size={48} color={colors.border} />
@@ -136,6 +209,41 @@ const SIMScreen: React.FC = () => {
           </View>
         )}
       </View>
+
+      {/* MODAL: Modifier SIM */}
+      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Modifier la SIM</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Numéro de téléphone</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="+243 XX XXX XXXX"
+              placeholderTextColor="#64748B"
+              value={editPhoneNumber}
+              onChangeText={setEditPhoneNumber}
+              autoFocus
+            />
+
+            <Text style={styles.inputLabel}>Services souscrits</Text>
+            <Text style={styles.inputLabelHint}>Sélectionnez les services à activer</Text>
+            <SIMServiceConfig
+              enabledServices={editServices}
+              onToggle={handleToggleEditService}
+            />
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleEditSim} activeOpacity={0.7}>
+              <Text style={styles.saveBtnText}>Enregistrer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -243,6 +351,90 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+
+  // Edit / Delete buttons
+  editDeleteRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: spacing.md,
+  },
+  editBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  deleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    padding: spacing.md,
+  },
+  deleteBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.danger,
+    fontWeight: '700',
+  },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text },
+  inputLabel: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: '600', marginBottom: spacing.xs },
+  inputLabelHint: { fontSize: fontSize.xs, color: colors.textLight, marginBottom: spacing.sm },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    color: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    marginBottom: spacing.md,
+  },
+  saveBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  saveBtnText: { fontSize: fontSize.md, fontWeight: '700', color: colors.background },
 });
 
 export default SIMScreen;
