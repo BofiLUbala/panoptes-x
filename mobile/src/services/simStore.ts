@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SimCard, SimService, Operator } from '../types';
 
 let simsState: SimCard[] = [];
@@ -9,6 +10,18 @@ function notify() {
 }
 
 export const simStore = {
+  async loadSims() {
+    try {
+      const stored = await AsyncStorage.getItem('@panoptes_sims');
+      if (stored) {
+        simsState = JSON.parse(stored);
+        notify();
+      }
+    } catch (e) {
+      console.error('Failed to load SIMs from storage', e);
+    }
+  },
+
   getSims(): SimCard[] {
     return simsState;
   },
@@ -16,6 +29,9 @@ export const simStore = {
   setSims(newSims: SimCard[]) {
     simsState = newSims;
     notify();
+    AsyncStorage.setItem('@panoptes_sims', JSON.stringify(simsState)).catch(e => {
+      console.error('Failed to save SIMs to storage', e);
+    });
   },
 
   addSims(
@@ -50,7 +66,28 @@ export const simStore = {
           : [...sim.enabledServices, service],
       };
     });
-    notify();
+    this.setSims(simsState);
+  },
+
+  deleteSim(simId: string) {
+    simsState = simsState.filter((sim) => sim.id !== simId);
+    this.setSims(simsState);
+  },
+
+  updateSimNumber(simId: string, newNumber: string) {
+    simsState = simsState.map((sim) => {
+      if (sim.id !== simId) return sim;
+      return { ...sim, phoneNumber: newNumber };
+    });
+    this.setSims(simsState);
+  },
+
+  updateSim(simId: string, newNumber: string, services: SimService[]) {
+    simsState = simsState.map((sim) => {
+      if (sim.id !== simId) return sim;
+      return { ...sim, phoneNumber: newNumber, enabledServices: [...services] };
+    });
+    this.setSims(simsState);
   },
 
   subscribe(listener: () => void) {

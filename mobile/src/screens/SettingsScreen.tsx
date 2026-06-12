@@ -1,114 +1,138 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { colors as themeColors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import AppHeader from '../components/AppHeader';
 import { api } from '../services/api';
+import { simStore } from '../services/simStore';
+import { SimCard } from '../types';
 
 const SettingsScreen: React.FC = () => {
-  const [profile, setProfile] = React.useState<any>(null);
-  const [phone, setPhone] = React.useState('Non configuré');
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [tempPhone, setTempPhone] = React.useState('');
+  const { mode, colors, toggle } = useTheme();
+  const [profile, setProfile] = useState<any>(null);
+  const [sims, setSims] = useState<SimCard[]>([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     api.getProfile()
-      .then((res) => {
-        setProfile(res);
-        const p = res?.whatsapp_number || res?.phone || '';
-        if (p) {
-          setPhone(p);
-          setTempPhone(p);
-        }
-      })
-      .catch((err) => console.log('Error getting profile in Settings:', err));
+      .then((res) => setProfile(res))
+      .catch(() => {});
+    setSims(simStore.getSims());
+    const unsubscribe = simStore.subscribe(() => setSims(simStore.getSims()));
+    return unsubscribe;
   }, []);
 
-  const handleSavePhone = () => {
-    if (!tempPhone.startsWith('+243') || tempPhone.length < 13) {
-      alert('Veuillez entrer un numéro valide au format +243 suivi de 9 chiffres.');
-      return;
-    }
-    setPhone(tempPhone);
-    setIsEditing(false);
-  };
+  const profileName = profile?.username || profile?.email || 'Agent';
+  const profilePhone = profile?.phone || profile?.whatsapp_number || '+243 XX XXX XXXX';
+  const profileEmail = profile?.email || '';
+  const profileService = profile?.service_profile || 'business';
 
   return (
-    <View style={styles.container}>
-      <AppHeader title="Compte" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader title="Paramètres" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={24} color={colors.primary} />
+        {/* Profile card */}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.avatar, { backgroundColor: colors.background, borderColor: colors.primary }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {profileName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.profileName, { color: colors.text }]}>{profileName}</Text>
+              <Text style={[styles.profileSub, { color: colors.textSecondary }]}>{profilePhone}</Text>
+              {profileEmail ? (
+                <Text style={[styles.profileSub, { color: colors.textSecondary }]}>{profileEmail}</Text>
+              ) : null}
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.profileName}>{profile?.username || 'Mon profil'}</Text>
-            {isEditing ? (
-              <View style={styles.inlineEditRow}>
-                <TextInput
-                  style={styles.inlineInput}
-                  value={tempPhone}
-                  onChangeText={(val) => {
-                    let digits = val.slice(4).replace(/\D/g, '');
-                    setTempPhone('+243' + digits);
-                  }}
-                  maxLength={13}
-                  keyboardType="phone-pad"
-                  autoFocus
-                />
-                <TouchableOpacity onPress={handleSavePhone} style={styles.saveBtn}>
-                  <Ionicons name="checkmark" size={18} color={colors.success} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelBtn}>
-                  <Ionicons name="close" size={18} color={colors.warning} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={styles.profilePhone}>{phone}</Text>
-                <TouchableOpacity onPress={() => { setTempPhone(phone === 'Non configuré' ? '+243' : phone); setIsEditing(true); }}>
-                  <Ionicons name="create-outline" size={16} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-            )}
+          <View style={[styles.profileBadge, { backgroundColor: colors.background, borderColor: colors.primary }]}>
+            <Text style={[styles.profileBadgeText, { color: colors.primary }]}>
+              Profil: {profileService}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>Statistiques</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>Exporter les données</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>Gérer les SIM</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>Langue (Français / Lingala)</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+        {/* SIMs card */}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="phone-portrait-outline" size={18} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes cartes SIM</Text>
+            <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>{sims.length}</Text>
+          </View>
+          {sims.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.textLight} />
+              <Text style={[styles.emptyText, { color: colors.textLight }]}>Aucune carte SIM enregistrée.</Text>
+            </View>
+          ) : (
+            sims.map((sim) => (
+              <View key={sim.id} style={[styles.simRow, { borderBottomColor: colors.border }]}>
+                <View style={[styles.simDot, { backgroundColor: getOperatorColor(sim.operator) }]} />
+                <Text style={[styles.simPhone, { color: colors.text }]}>{sim.phoneNumber}</Text>
+                <Text style={[styles.simServices, { color: colors.textSecondary }]}>
+                  {sim.enabledServices.length} service(s)
+                </Text>
+              </View>
+            ))
+          )}
         </View>
 
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>À propos</Text>
-            <Text style={styles.menuArrow}>›</Text>
+        {/* Theme toggle */}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="moon-outline" size={18} color={colors.warning} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Affichage</Text>
+          </View>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabel}>
+              <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.warning} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Mode sombre</Text>
+            </View>
+            <Switch
+              value={mode === 'dark'}
+              onValueChange={toggle}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={mode === 'dark' ? colors.primary : colors.textLight}
+            />
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TouchableOpacity style={styles.menuRow} onPress={() => {}} activeOpacity={0.7}>
+            <Ionicons name="stats-chart" size={18} color={colors.textSecondary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>Statistiques</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => api.logout()}>
-            <Text style={[styles.menuText, { color: colors.warning }]}>Déconnexion</Text>
-            <Text style={[styles.menuArrow, { color: colors.warning }]}>›</Text>
+          <TouchableOpacity style={styles.menuRow} onPress={() => {}} activeOpacity={0.7}>
+            <Ionicons name="download-outline" size={18} color={colors.textSecondary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>Exporter les données</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuRow} onPress={() => {}} activeOpacity={0.7}>
+            <Ionicons name="language" size={18} color={colors.textSecondary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>Langue (Français / Lingala)</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuRow} onPress={() => {}} activeOpacity={0.7}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>À propos</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.menuRow, { borderBottomWidth: 0 }]} onPress={() => api.logout()} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+            <Text style={[styles.menuText, { color: colors.danger }]}>Déconnexion</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -116,15 +140,29 @@ const SettingsScreen: React.FC = () => {
   );
 };
 
+function getOperatorColor(op: string): string {
+  switch (op) {
+    case 'AIRTEL': return '#E11B22';
+    case 'ORANGE': return '#FF7900';
+    case 'VODACOM': return '#00A94F';
+    case 'AFRICELL': return '#ED1C24';
+    default: return themeColors.textSecondary;
+  }
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   scroll: { padding: spacing.md, paddingBottom: 100 },
-  profileCard: {
-    backgroundColor: colors.surface,
+
+  card: {
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+
+  // Profile
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -134,69 +172,76 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.background,
     borderWidth: 2,
-    borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileName: {
-    fontSize: fontSize.md,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  profilePhone: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  section: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+  avatarText: { fontSize: fontSize.xl, fontWeight: 'bold' },
+  profileName: { fontSize: fontSize.md, fontWeight: 'bold' },
+  profileSub: { fontSize: fontSize.sm, marginTop: 2 },
+  profileBadge: {
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
   },
-  menuItem: {
+  profileBadgeText: { fontSize: fontSize.xs, fontWeight: '600' },
+
+  // Section
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: { fontSize: fontSize.sm, fontWeight: '700', flex: 1 },
+  sectionCount: { fontSize: fontSize.sm, fontWeight: '700' },
+
+  // SIM list
+  simRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  simDot: { width: 8, height: 8, borderRadius: 4 },
+  simPhone: { fontSize: fontSize.sm, fontWeight: '600', flex: 1 },
+  simServices: { fontSize: fontSize.xs },
+
+  emptyBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  emptyText: { fontSize: fontSize.sm, flex: 1 },
+
+  // Theme toggle
+  settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.sm,
   },
-  menuText: {
-    fontSize: fontSize.sm,
-    color: colors.text,
-  },
-  menuArrow: {
-    fontSize: fontSize.lg,
-    color: colors.textLight,
-  },
-  inlineEditRow: {
+  settingLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: 4,
+    gap: spacing.sm,
   },
-  inlineInput: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    color: colors.white,
-    fontSize: fontSize.xs,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  settingText: { fontSize: fontSize.sm, fontWeight: '600' },
+
+  // Menu items
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
   },
-  saveBtn: {
-    padding: 4,
-  },
-  cancelBtn: {
-    padding: 4,
-  },
+  menuText: { fontSize: fontSize.sm, fontWeight: '600', flex: 1 },
 });
 
 export default SettingsScreen;

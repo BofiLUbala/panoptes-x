@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { api } from '../services/api';
+import AppLogo from '../components/AppLogo';
 
 interface AuthScreenProps {
   onLogin: () => void;
@@ -27,10 +29,26 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
   const [loading, setLoading] = useState(false);
   const pwdRef = useRef<TextInput>(null);
 
+  useEffect(() => {
+    const loadCredentials = async () => {
+      try {
+        const savedId = await AsyncStorage.getItem('@panoptes_id');
+        const savedPwd = await AsyncStorage.getItem('@panoptes_pwd');
+        if (savedId) setIdentifier(savedId);
+        if (savedPwd) setPassword(savedPwd);
+      } catch (e) {}
+    };
+    loadCredentials();
+  }, []);
+
   const handleLogin = async () => {
     setLoading(true);
     try {
       await api.login(identifier, password);
+      try {
+        await AsyncStorage.setItem('@panoptes_id', identifier);
+        await AsyncStorage.setItem('@panoptes_pwd', password);
+      } catch (e) {}
       onLogin();
     } catch (err: any) {
       console.error('Login error:', err);
@@ -52,9 +70,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View style={styles.logoBox}>
-            <Ionicons name="grid" size={40} color={colors.primary} />
+            <AppLogo size={48} />
           </View>
-          <Text style={styles.appName}>Panoptes-x</Text>
+          <Text style={styles.appName}>PANOPTES-X</Text>
           <Text style={styles.tagline}>Console de pilotage financier</Text>
         </View>
 

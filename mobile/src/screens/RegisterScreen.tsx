@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { api } from '../services/api';
 import { ServiceProfile } from '../types';
+import CountryCodePicker from '../components/CountryCodePicker';
 
 interface RegisterScreenProps {
   onBack: () => void;
@@ -53,6 +54,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
   const [serviceProfile, setServiceProfile] = useState<ServiceProfile>('business');
   const [tab, setTab] = useState<AuthMethod>('email');
   const [email, setEmail] = useState('');
+  const [whatsappCode, setWhatsappCode] = useState('+243');
   const [whatsapp, setWhatsapp] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -80,14 +82,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
       if (tab === 'email') {
         payload.email = email;
       } else {
-        payload.whatsapp_number = whatsapp;
+        payload.whatsapp_number = whatsappCode + whatsapp;
       }
 
       const res = await api.register(payload);
       setErrorMsg('');
 
       if (tab === 'whatsapp') {
-        onWhatsappRegister(whatsapp);
+        onWhatsappRegister(whatsappCode + whatsapp);
       } else {
         Alert.alert('Compte créé', res?.message || `Vérifiez votre boîte e-mail à l'adresse ${email} pour activer votre compte.`);
         onSuccess();
@@ -171,13 +173,18 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onBack, onSuccess, onWh
             <>
               <View style={styles.inputGroup}>
                 <Ionicons name="logo-whatsapp" size={18} color="#25D366" style={styles.inputIcon} />
+                <CountryCodePicker selectedCode={whatsappCode} onSelectCode={setWhatsappCode} />
                 <TextInput
                   style={styles.input}
-                  placeholder="+243 XX XXX XXXX"
+                  placeholder="XX XXX XXXX"
                   placeholderTextColor={colors.textLight}
                   keyboardType="phone-pad"
+                  maxLength={10}
                   value={whatsapp}
-                  onChangeText={setWhatsapp}
+                  onChangeText={(val) => {
+                    const digits = val.replace(/\D/g, '');
+                    setWhatsapp(digits);
+                  }}
                   returnKeyType="next"
                   onSubmitEditing={() => userRef.current?.focus()}
                 />

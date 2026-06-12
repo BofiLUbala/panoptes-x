@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { useDrawer } from '../contexts/DrawerContext';
+import AppLogo from './AppLogo';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.75;
 
@@ -90,10 +91,10 @@ const NavigationDrawer: React.FC<NavigationDrawerProps> = ({ items }) => {
         <View style={styles.drawerHeader}>
           <View style={styles.drawerBrand}>
             <View style={styles.drawerLogo}>
-              <Ionicons name="grid" size={28} color={colors.primary} />
+              <AppLogo size={28} />
             </View>
             <View>
-              <Text style={styles.drawerTitle}>Panoptes-x</Text>
+              <Text style={styles.drawerTitle}>PANOPTES-X</Text>
               <Text style={styles.drawerSubtitle}>Console de pilotage</Text>
             </View>
           </View>
