@@ -17,7 +17,6 @@
       "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": ["**/*"],
-    "plugins": ["./plugins/withNetworkSecurityConfig"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.panoptesx.app",
