@@ -8,7 +8,7 @@ function getApiBaseUrl(): string {
   }
 
   // IP actuelle détectée via ipconfig (change si le réseau change)
-  return `http://10.188.45.79:${API_PORT}/api`;
+  return `http://10.130.154.79:${API_PORT}/api`;
 }
 
 export const API_BASE_URL = getApiBaseUrl();

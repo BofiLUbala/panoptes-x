@@ -89,3 +89,32 @@ export interface SimTransaction {
   label: string;
 }
 
+export type WatchStatus = 'pending' | 'active' | 'rejected' | 'revoked';
+
+export interface WatchRelation {
+  id: number;
+  watcher_phone: string;
+  target_phone: string;
+  status: WatchStatus;
+  created_at: string;
+  confirmed_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface ForwardedSms {
+  id: number;
+  target_phone: string;
+  sender: string;
+  message: string;
+  received_at: string;
+  created_at: string;
+}
+
+export interface RegisteredDevice {
+  id: number;
+  phone_number: string;
+  device_secret: string;
+  fcm_token: string | null;
+  created_at: string;
+}
+

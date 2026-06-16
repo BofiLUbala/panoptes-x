@@ -1,6 +1,14 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { Transaction, FailedParse, ServiceProfile } from '../types';
+import {
+  Transaction,
+  FailedParse,
+  ServiceProfile,
+  WatchRelation,
+  ForwardedSms,
+  RegisteredDevice,
+} from '../types';
 import { API_BASE_URL } from '../config';
+import { deviceStore } from './deviceStore';
 
 class AgentTrackApi {
   private client: AxiosInstance;
@@ -104,6 +112,108 @@ class AgentTrackApi {
     }
     const response: AxiosResponse = await this.client.get('/dashboard/');
     return response.data;
+  }
+
+  private async deviceHeaders(): Promise<Record<string, string>> {
+    const secret = await deviceStore.getDeviceSecret();
+    return secret ? { 'X-Device-Secret': secret } : {};
+  }
+
+  async registerDevice(phoneNumber: string, fcmToken?: string): Promise<RegisteredDevice> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const response: AxiosResponse = await this.client.post('/monitoring/register-device/', {
+      phone_number: phoneNumber,
+      fcm_token: fcmToken,
+    });
+    const data: RegisteredDevice = response.data;
+    await deviceStore.saveDevice(data.phone_number, data.device_secret);
+    return data;
+  }
+
+  async authorizeWatcher(targetPhone: string, watcherPhone?: string): Promise<WatchRelation> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.post(
+      '/monitoring/authorize-watcher/',
+      { target_phone: targetPhone, watcher_phone: watcherPhone },
+      { headers },
+    );
+    return response.data;
+  }
+
+  async confirmWatcher(requestId: number, action: 'accept' | 'reject'): Promise<WatchRelation> {
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.post(
+      '/monitoring/confirm-watcher/',
+      { request_id: requestId, action },
+      { headers },
+    );
+    return response.data;
+  }
+
+  async revokeWatcher(requestId: number): Promise<WatchRelation> {
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.post(
+      '/monitoring/revoke-watcher/',
+      { request_id: requestId },
+      { headers },
+    );
+    return response.data;
+  }
+
+  async getWatchRelations(role?: 'watcher' | 'target'): Promise<WatchRelation[]> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.get('/monitoring/watch-relations/', {
+      params: role ? { role } : undefined,
+      headers,
+    });
+    return response.data;
+  }
+
+  async forwardSms(payload: {
+    sender: string;
+    message: string;
+    timestamp?: string;
+  }): Promise<ForwardedSms> {
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.post(
+      '/monitoring/forward-sms/',
+      payload,
+      { headers },
+    );
+    return response.data;
+  }
+
+  async getForwardedSms(
+    targetPhone: string,
+    page = 1,
+    pageSize = 50,
+  ): Promise<{ results: ForwardedSms[]; count: number }> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const headers = await this.deviceHeaders();
+    const response: AxiosResponse = await this.client.get('/monitoring/get-sms/', {
+      params: { target_phone: targetPhone, page, page_size: pageSize },
+      headers,
+    });
+    return response.data;
+  }
+
+  async hasActiveWatchAsTarget(): Promise<boolean> {
+    try {
+      const relations = await this.getWatchRelations('target');
+      return relations.some((r) => r.status === 'active');
+    } catch {
+      return false;
+    }
   }
 }
 

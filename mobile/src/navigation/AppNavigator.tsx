@@ -19,6 +19,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import MonitoringScreen from '../screens/MonitoringScreen';
 import SIMScreen from '../screens/SIMScreen';
 import NavigationDrawer from '../components/NavigationDrawer';
 import CountryCodePicker from '../components/CountryCodePicker';
@@ -32,6 +33,7 @@ const TAB_ICONS: Record<string, { focused: keyof typeof Ionicons.glyphMap; defau
   Dashboard: { focused: 'home', default: 'home-outline' },
   SIM: { focused: 'phone-portrait', default: 'phone-portrait-outline' },
   History: { focused: 'list', default: 'list-outline' },
+  Monitoring: { focused: 'eye', default: 'eye-outline' },
   Subscription: { focused: 'card', default: 'card-outline' },
   Settings: { focused: 'person', default: 'person-outline' },
 };
@@ -129,6 +131,20 @@ const AppNavigator: React.FC = () => {
       label: 'Paramètres',
       onPress: () => {
         setSettingsModalVisible(true);
+      },
+    },
+    {
+      icon: 'time-outline' as const,
+      label: 'Historique',
+      onPress: () => {
+        navigation.navigate('History');
+      },
+    },
+    {
+      icon: 'document-text-outline' as const,
+      label: 'Résumé',
+      onPress: () => {
+        // Summary feature
       },
     },
   ];
@@ -358,6 +374,7 @@ const AppNavigator: React.FC = () => {
         <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Accueil' }} />
         <Tab.Screen name="SIM" component={SIMScreen} options={{ tabBarLabel: 'Mes SIM' }} />
         <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: 'Historique' }} />
+        <Tab.Screen name="Monitoring" component={MonitoringScreen} options={{ tabBarLabel: 'Surveillance' }} />
         <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ tabBarLabel: 'Abonnement' }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Compte' }} />
       </Tab.Navigator>

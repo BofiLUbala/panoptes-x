@@ -32,9 +32,6 @@ const SIMServiceConfig: React.FC<SIMServiceConfigProps> = ({ enabledServices, on
               onPress={() => onToggle(svc.key)}
               activeOpacity={0.7}
             >
-              <View style={[styles.checkbox, enabled && styles.checkboxActive]}>
-                {enabled && <Ionicons name="checkmark" size={14} color={colors.background} />}
-              </View>
               <Ionicons
                 name={svc.icon}
                 size={16}
