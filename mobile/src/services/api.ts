@@ -208,6 +208,9 @@ class AgentTrackApi {
   }
 
   async hasActiveWatchAsTarget(): Promise<boolean> {
+    // NOTE: This method is intentionally kept for display purposes only
+    // (e.g., showing a badge in the UI). It must NOT be used as a gate
+    // before forwarding SMS — the backend handles that check server-side.
     try {
       const relations = await this.getWatchRelations('target');
       return relations.some((r) => r.status === 'active');

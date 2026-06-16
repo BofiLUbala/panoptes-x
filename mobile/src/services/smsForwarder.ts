@@ -36,25 +36,43 @@ async function handleIncomingSms(sms: SmsPayload): Promise<void> {
     ? new Date(sms.timestamp).toISOString()
     : new Date().toISOString();
 
-  const isActive = await api.hasActiveWatchAsTarget();
-  if (!isActive) {
-    return;
-  }
+  console.log('[PANOPTES-X] Incoming SMS from:', sender);
+
+  // REMOVED: hasActiveWatchAsTarget() guard — it requires a valid JWT and a network
+  // call on every SMS, causing silent drops when the token is expired or the network
+  // is momentarily unavailable. The backend already rejects forward-sms with 403
+  // (NO_ACTIVE_WATCH) when no active relation exists, so we let the server decide.
+  // If forwarding fails, the SMS is queued for retry.
 
   try {
     await api.forwardSms({ sender, message, timestamp });
-  } catch {
+    console.log('[PANOPTES-X] SMS forwarded successfully');
+  } catch (err: any) {
+    const status = err?.response?.status;
+    // 403 = NO_ACTIVE_WATCH — no point queuing, the target isn't being watched
+    if (status === 403) {
+      console.log('[PANOPTES-X] No active watcher — SMS not forwarded (403)');
+      return;
+    }
+    // Any other error (network, 5xx, etc.) → queue for retry
+    console.warn('[PANOPTES-X] Forward failed, queuing SMS:', err?.message);
     await smsQueue.enqueue({ sender, message, timestamp });
   }
 }
 
 async function flushQueue(): Promise<void> {
   const queued = await smsQueue.drain();
+  if (queued.length === 0) return;
+  console.log('[PANOPTES-X] Flushing', queued.length, 'queued SMS(s)');
   for (const item of queued) {
     try {
       await api.forwardSms(item);
-    } catch {
-      await smsQueue.enqueue(item);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 403) {
+        // Re-enqueue only if it's not a "no watcher" response
+        await smsQueue.enqueue(item);
+      }
       break;
     }
   }
@@ -91,6 +109,7 @@ export const smsForwarder = {
         handleIncomingSms(sms).catch(console.error);
       });
       listenerStarted = true;
+      console.log('[PANOPTES-X] SMS listener started (native module)');
       return;
     }
 
@@ -104,6 +123,7 @@ export const smsForwarder = {
     subscription?.remove();
     subscription = null;
     listenerStarted = false;
+    console.log('[PANOPTES-X] SMS listener stopped');
   },
 
   async flushQueue(): Promise<void> {

@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -23,14 +25,21 @@ from .utils import (
     send_fcm_notification,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _get_watcher_device(request):
+    """Resolve the calling device from X-Device-Secret header first,
+    then fall back to any device owned by the authenticated user."""
     secret = get_device_secret_from_request(request)
     if secret:
         device = Device.objects.filter(device_secret=secret).first()
         if device:
             return device
-    return Device.objects.filter(user=request.user).first()
+    # Fall back to user-owned device only when request.user is authenticated
+    if hasattr(request, 'user') and request.user and request.user.is_authenticated:
+        return Device.objects.filter(user=request.user).first()
+    return None
 
 
 class RegisterDeviceView(APIView):
@@ -270,14 +279,18 @@ class ForwardSmsView(APIView):
     def post(self, request):
         serializer = ForwardSmsSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.warning('forward-sms validation error: %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         target = request.device
+        logger.info('forward-sms: target=%s sender=%s', target.phone_number, serializer.validated_data.get('sender'))
+
         has_active = WatchRelation.objects.filter(
             target=target,
             status='active',
         ).exists()
         if not has_active:
+            logger.warning('forward-sms: no active watcher for target=%s', target.phone_number)
             return Response(
                 {'error_code': 'NO_ACTIVE_WATCH', 'message': 'Aucune surveillance active.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -290,6 +303,7 @@ class ForwardSmsView(APIView):
             message=serializer.validated_data['message'],
             received_at=received_at,
         )
+        logger.info('forward-sms: stored sms id=%s', sms.id)
 
         cleanup_old_sms()
 
@@ -313,14 +327,25 @@ class ForwardSmsView(APIView):
 
 
 class GetSmsView(APIView):
-    permission_classes = [IsAuthenticated]
+    # Accept both JWT (IsAuthenticated) and device-secret (HasDeviceSecret).
+    # AllowAny is used here and device resolution is done manually so that
+    # Device A can retrieve SMS using either its JWT bearer token or its
+    # X-Device-Secret header (useful for background polling).
+    permission_classes = []
 
     def get(self, request):
-        watcher = _get_watcher_device(request)
+        # Try to resolve watcher from device-secret header first, then JWT
+        watcher = None
+        secret = get_device_secret_from_request(request)
+        if secret:
+            watcher = Device.objects.filter(device_secret=secret).first()
+        if not watcher and hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            watcher = Device.objects.filter(user=request.user).first()
+
         if not watcher:
             return Response(
-                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistré.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistré ou authentification requise.'},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         target_phone = request.query_params.get('target_phone')
@@ -340,6 +365,7 @@ class GetSmsView(APIView):
             target=target,
             status='active',
         ).exists():
+            logger.warning('get-sms: watcher=%s not authorized for target=%s', watcher.phone_number, target_phone)
             return Response(
                 {'error_code': 'NOT_AUTHORIZED', 'message': 'Surveillance non active pour ce numéro.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -353,4 +379,5 @@ class GetSmsView(APIView):
         total = qs.count()
         items = qs[offset:offset + page_size]
         serializer = ForwardedSmsSerializer(items, many=True)
+        logger.info('get-sms: watcher=%s target=%s count=%s', watcher.phone_number, target_phone, total)
         return Response({'results': serializer.data, 'count': total, 'page': page, 'page_size': page_size})

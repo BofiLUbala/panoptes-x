@@ -19,7 +19,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import MonitoringScreen from '../screens/MonitoringScreen';
+import GetHistoryScreen from '../screens/GetHistoryScreen';
 import SIMScreen from '../screens/SIMScreen';
 import NavigationDrawer from '../components/NavigationDrawer';
 import CountryCodePicker from '../components/CountryCodePicker';
@@ -30,10 +30,10 @@ import { Operator, SimService } from '../types';
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS: Record<string, { focused: keyof typeof Ionicons.glyphMap; default: keyof typeof Ionicons.glyphMap }> = {
+  Historique: { focused: 'time', default: 'time-outline' },
   Dashboard: { focused: 'home', default: 'home-outline' },
   SIM: { focused: 'phone-portrait', default: 'phone-portrait-outline' },
-  History: { focused: 'list', default: 'list-outline' },
-  Monitoring: { focused: 'eye', default: 'eye-outline' },
+  GetHistory: { focused: 'time', default: 'time-outline' },
   Subscription: { focused: 'card', default: 'card-outline' },
   Settings: { focused: 'person', default: 'person-outline' },
 };
@@ -135,9 +135,9 @@ const AppNavigator: React.FC = () => {
     },
     {
       icon: 'time-outline' as const,
-      label: 'Historique',
+      label: 'get history',
       onPress: () => {
-        navigation.navigate('History');
+        navigation.navigate('GetHistory');
       },
     },
     {
@@ -371,10 +371,10 @@ const AppNavigator: React.FC = () => {
           headerShown: false,
         })}
       >
+        <Tab.Screen name="Historique" component={HistoryScreen} options={{ tabBarLabel: 'Historique' }} />
         <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Accueil' }} />
         <Tab.Screen name="SIM" component={SIMScreen} options={{ tabBarLabel: 'Mes SIM' }} />
-        <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: 'Historique' }} />
-        <Tab.Screen name="Monitoring" component={MonitoringScreen} options={{ tabBarLabel: 'Surveillance' }} />
+        <Tab.Screen name="GetHistory" component={GetHistoryScreen} options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
         <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ tabBarLabel: 'Abonnement' }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Compte' }} />
       </Tab.Navigator>

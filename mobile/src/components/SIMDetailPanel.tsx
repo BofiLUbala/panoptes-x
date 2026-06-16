@@ -3,9 +3,16 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { SimCard, SimService, SimTransaction } from '../types';
-import SIMServiceConfig from './SIMServiceConfig';
 import SIMActionButtons from './SIMActionButtons';
 import SIMTransactionHistory from './SIMTransactionHistory';
+
+const SERVICE_META: Record<SimService, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  [SimService.MOBILE_MONEY]: { label: 'Mobile Money', icon: 'swap-horizontal', color: '#22c55e' },
+  [SimService.DATA_BUNDLES]: { label: 'Data Bundles', icon: 'globe', color: '#3b82f6' },
+  [SimService.AIRTIME]: { label: 'Airtime', icon: 'call', color: '#f59e0b' },
+  [SimService.BILL_PAYMENT]: { label: 'Factures', icon: 'receipt', color: '#a78bfa' },
+  [SimService.TV]: { label: 'TV', icon: 'tv', color: '#06b6d4' },
+};
 
 interface SIMDetailPanelProps {
   sim: SimCard;
@@ -58,10 +65,24 @@ const SIMDetailPanel: React.FC<SIMDetailPanelProps> = ({ sim, transactions, onTo
         )}
       </View>
 
-      <SIMServiceConfig
-        enabledServices={sim.enabledServices}
-        onToggle={onToggleService}
-      />
+      {sim.enabledServices.length > 0 && (
+        <View style={styles.servicesSection}>
+          <Text style={styles.sectionTitle}>Services souscrits</Text>
+          <View style={styles.servicesGrid}>
+            {sim.enabledServices.map((svc) => {
+              const meta = SERVICE_META[svc];
+              return (
+                <View key={svc} style={[styles.serviceCard, { borderColor: meta.color }]}>
+                  <View style={[styles.serviceIconWrap, { backgroundColor: meta.color + '20' }]}>
+                    <Ionicons name={meta.icon} size={20} color={meta.color} />
+                  </View>
+                  <Text style={styles.serviceLabel}>{meta.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       <SIMActionButtons enabledServices={sim.enabledServices} />
 
@@ -128,6 +149,44 @@ const styles = StyleSheet.create({
   balanceValue: {
     fontSize: fontSize.md,
     fontWeight: '800',
+    color: colors.text,
+  },
+  servicesSection: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  serviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  serviceIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  serviceLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
     color: colors.text,
   },
 });

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { deviceStore } from '../services/deviceStore';
 import { smsForwarder } from '../services/smsForwarder';
@@ -32,13 +32,27 @@ export async function setupMonitoringAfterLogin(profile?: {
   }
 }
 
-export function useMonitoringLifecycle(isAuthenticated: boolean, profile?: { phone?: string; whatsapp_number?: string }) {
+export function useMonitoringLifecycle(
+  isAuthenticated: boolean,
+  profile?: { phone?: string; whatsapp_number?: string },
+) {
+  // Use stable primitive deps instead of the object reference to avoid
+  // re-running the effect on every render when `profile` is a new object.
+  const profilePhone = profile?.phone;
+  const profileWhatsapp = profile?.whatsapp_number;
+
+  // Keep a ref so the effect can always see the latest profile without
+  // adding it to the dependency array (which would cause infinite loops).
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+
   useEffect(() => {
     if (!isAuthenticated) {
       smsForwarder.stop();
       return;
     }
-    setupMonitoringAfterLogin(profile).catch(console.error);
+    setupMonitoringAfterLogin(profileRef.current).catch(console.error);
     return () => smsForwarder.stop();
-  }, [isAuthenticated, profile?.phone, profile?.whatsapp_number]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, profilePhone, profileWhatsapp]);
 }
