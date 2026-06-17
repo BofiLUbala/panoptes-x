@@ -11,7 +11,6 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import { api } from './src/services/api';
 import { simStore } from './src/services/simStore';
-import { useMonitoringLifecycle } from './src/hooks/useMonitoring';
 
 type AppState = 'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main';
 
@@ -20,8 +19,6 @@ const AppContent: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('onboarding');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [userProfile, setUserProfile] = useState<{ phone?: string; whatsapp_number?: string } | undefined>();
-
-  useMonitoringLifecycle(appState === 'main', userProfile);
 
   useEffect(() => {
     simStore.loadSims();
