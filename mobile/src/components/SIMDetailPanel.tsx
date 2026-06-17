@@ -12,6 +12,7 @@ const SERVICE_META: Record<SimService, { label: string; icon: keyof typeof Ionic
   [SimService.AIRTIME]: { label: 'Airtime', icon: 'call', color: '#f59e0b' },
   [SimService.BILL_PAYMENT]: { label: 'Factures', icon: 'receipt', color: '#a78bfa' },
   [SimService.TV]: { label: 'TV', icon: 'tv', color: '#06b6d4' },
+  [SimService.GENERAL_MESSAGES]: { label: 'Messages généraux', icon: 'chatbox-ellipses', color: '#64748b' },
 };
 
 interface SIMDetailPanelProps {

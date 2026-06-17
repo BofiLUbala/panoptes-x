@@ -15,7 +15,10 @@ const ALL_SERVICES: { key: SimService; label: string; icon: keyof typeof Ionicon
   { key: SimService.AIRTIME, label: 'Airtime (Crédit)', icon: 'call' },
   { key: SimService.BILL_PAYMENT, label: 'Paiement Factures', icon: 'receipt' },
   { key: SimService.TV, label: 'TV', icon: 'tv' },
+  { key: SimService.GENERAL_MESSAGES, label: 'Messages généraux', icon: 'chatbox-ellipses' },
 ];
+
+const AUTO_SERVICE = SimService.GENERAL_MESSAGES;
 
 const SIMServiceConfig: React.FC<SIMServiceConfigProps> = ({ enabledServices, onToggle }) => {
   return (
@@ -25,21 +28,23 @@ const SIMServiceConfig: React.FC<SIMServiceConfigProps> = ({ enabledServices, on
       <View style={styles.grid}>
         {ALL_SERVICES.map((svc) => {
           const enabled = enabledServices.includes(svc.key);
+          const isAuto = svc.key === AUTO_SERVICE;
           return (
             <TouchableOpacity
               key={svc.key}
-              style={[styles.serviceItem, enabled && styles.serviceItemActive]}
-              onPress={() => onToggle(svc.key)}
-              activeOpacity={0.7}
+              style={[styles.serviceItem, enabled && styles.serviceItemActive, isAuto && styles.serviceItemAuto]}
+              onPress={isAuto ? undefined : () => onToggle(svc.key)}
+              activeOpacity={isAuto ? 1 : 0.7}
             >
               <Ionicons
-                name={svc.icon}
+                name={isAuto ? 'lock-closed' : svc.icon}
                 size={16}
-                color={enabled ? colors.primary : colors.textLight}
+                color={isAuto ? colors.textLight : enabled ? colors.primary : colors.textLight}
               />
-              <Text style={[styles.serviceLabel, enabled && styles.serviceLabelActive]}>
+              <Text style={[styles.serviceLabel, enabled && styles.serviceLabelActive, isAuto && styles.serviceLabelAuto]}>
                 {svc.label}
               </Text>
+              {isAuto && <Text style={styles.autoBadge}>Auto</Text>}
             </TouchableOpacity>
           );
         })}
@@ -104,6 +109,24 @@ const styles = StyleSheet.create({
   },
   serviceLabelActive: {
     color: colors.text,
+  },
+  serviceLabelAuto: {
+    color: colors.textLight,
+  },
+  serviceItemAuto: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    opacity: 0.8,
+  },
+  autoBadge: {
+    fontSize: 10,
+    color: colors.textLight,
+    fontWeight: '600',
+    backgroundColor: colors.background,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
 });
 

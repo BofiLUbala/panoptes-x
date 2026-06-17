@@ -49,13 +49,14 @@ export const simStore = {
         airtimeBalance: 0,
         dataBalance: 0,
         dataUnit: 'GB',
-        enabledServices: [...services],
+        enabledServices: [...services, SimService.GENERAL_MESSAGES],
       });
     });
     this.setSims(newSimList);
   },
 
   toggleService(simId: string, service: SimService) {
+    if (service === SimService.GENERAL_MESSAGES) return;
     simsState = simsState.map((sim) => {
       if (sim.id !== simId) return sim;
       const has = sim.enabledServices.includes(service);
@@ -85,7 +86,8 @@ export const simStore = {
   updateSim(simId: string, newNumber: string, services: SimService[]) {
     simsState = simsState.map((sim) => {
       if (sim.id !== simId) return sim;
-      return { ...sim, phoneNumber: newNumber, enabledServices: [...services] };
+      const merged = services.includes(SimService.GENERAL_MESSAGES) ? services : [...services, SimService.GENERAL_MESSAGES];
+      return { ...sim, phoneNumber: newNumber, enabledServices: merged };
     });
     this.setSims(simsState);
   },

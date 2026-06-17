@@ -108,9 +108,10 @@ const SIMScreen: React.FC = () => {
       <TouchableOpacity
         style={styles.editBtn}
         onPress={() => {
-          if (selectedSim) {
-            setEditPhoneNumber(selectedSim.phoneNumber);
-            setEditServices([...selectedSim.enabledServices]);
+          const sim = sims.find((s) => s.id === selectedSimId);
+          if (sim) {
+            setEditPhoneNumber(sim.phoneNumber);
+            setEditServices([...sim.enabledServices]);
             setEditModalVisible(true);
           }
         }}

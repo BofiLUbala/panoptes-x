@@ -46,12 +46,13 @@ const OPERATORS: { key: Operator; label: string; color: string }[] = [
   { key: Operator.AFRICELL, label: 'Africell', color: '#9b5de5' },
 ];
 
-const SERVICE_OPTIONS: { key: SimService; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+const SERVICE_OPTIONS: { key: SimService; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; auto?: boolean }[] = [
   { key: SimService.MOBILE_MONEY, label: 'Mobile Money', icon: 'swap-horizontal', color: '#22c55e' },
   { key: SimService.DATA_BUNDLES, label: 'Data Bundles', icon: 'globe', color: '#3b82f6' },
   { key: SimService.AIRTIME, label: 'Airtime (Crédit)', icon: 'call', color: '#f59e0b' },
   { key: SimService.BILL_PAYMENT, label: 'Paiement Factures', icon: 'receipt', color: '#a78bfa' },
   { key: SimService.TV, label: 'Abonnements TV', icon: 'tv', color: '#06b6d4' },
+  { key: SimService.GENERAL_MESSAGES, label: 'Messages généraux', icon: 'chatbox-ellipses', color: '#64748b', auto: true },
 ];
 
 type Step = 'menu' | 'pickOperator' | 'enterCount' | 'enterNumbers' | 'pickServices' | 'confirm';
@@ -290,7 +291,7 @@ const AppNavigator: React.FC = () => {
           </View>
         );
 
-      case 'pickServices':
+        case 'pickServices':
         return (
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Sélectionnez les services</Text>
@@ -299,21 +300,22 @@ const AppNavigator: React.FC = () => {
             </Text>
             <View style={styles.servicesList}>
               {SERVICE_OPTIONS.map((svc) => {
-                const isSelected = selectedServices.includes(svc.key);
+                const isSelected = svc.auto || selectedServices.includes(svc.key);
                 return (
                   <TouchableOpacity
                     key={svc.key}
-                    style={[styles.serviceRow, isSelected && styles.serviceRowActive]}
-                    onPress={() => toggleServiceSelection(svc.key)}
-                    activeOpacity={0.7}
+                    style={[styles.serviceRow, isSelected && styles.serviceRowActive, svc.auto && styles.serviceRowAuto]}
+                    onPress={svc.auto ? undefined : () => toggleServiceSelection(svc.key)}
+                    activeOpacity={svc.auto ? 1 : 0.7}
                   >
                     <View style={[styles.serviceCheckbox, isSelected && styles.serviceCheckboxActive]}>
-                      {isSelected && <Ionicons name="checkmark" size={14} color={colors.background} />}
+                      {isSelected && <Ionicons name={svc.auto ? 'lock-closed' : 'checkmark'} size={14} color={colors.background} />}
                     </View>
-                    <Ionicons name={svc.icon} size={18} color={isSelected ? svc.color : colors.textLight} />
-                    <Text style={[styles.serviceLabel, isSelected && styles.serviceLabelActive]}>
+                    <Ionicons name={svc.auto ? 'chatbox-ellipses' : svc.icon} size={18} color={isSelected ? svc.color : colors.textLight} />
+                    <Text style={[styles.serviceLabel, isSelected && styles.serviceLabelActive, svc.auto && styles.serviceLabelAuto]}>
                       {svc.label}
                     </Text>
+                    {svc.auto && <Text style={styles.autoBadge}>Auto</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -675,6 +677,24 @@ const styles = StyleSheet.create({
   serviceRowActive: {
     borderColor: colors.primary,
     backgroundColor: '#0f1f3d',
+  },
+  serviceRowAuto: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    opacity: 0.8,
+  },
+  serviceLabelAuto: {
+    color: colors.textLight,
+  },
+  autoBadge: {
+    fontSize: 10,
+    color: colors.textLight,
+    fontWeight: '600',
+    backgroundColor: colors.background,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   serviceCheckbox: {
     width: 22,

@@ -18,6 +18,7 @@ const SERVICE_META: Record<SimService, { label: string; icon: keyof typeof Ionic
   [SimService.AIRTIME]: { label: 'Airtime', icon: 'call', color: '#f59e0b' },
   [SimService.BILL_PAYMENT]: { label: 'Factures', icon: 'receipt', color: '#a78bfa' },
   [SimService.TV]: { label: 'TV', icon: 'tv', color: '#06b6d4' },
+  [SimService.GENERAL_MESSAGES]: { label: 'Messages généraux', icon: 'chatbox-ellipses', color: '#64748b' },
 };
 
 const OPERATOR_COLORS: Record<string, string> = {
@@ -52,10 +53,13 @@ const GetHistoryScreen: React.FC = () => {
           title="get history"
           subtitle={selectedSim.phoneNumber}
         />
-        <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedSim(null)}>
-          <Ionicons name="arrow-back" size={18} color={colors.primary} />
-          <Text style={styles.backBtnText}>Retour aux numéros</Text>
-        </TouchableOpacity>
+        <View style={styles.backRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedSim(null)}>
+            <Ionicons name="arrow-back" size={18} color={colors.primary} />
+            <Text style={styles.backBtnText}>Retour aux numéros</Text>
+          </TouchableOpacity>
+          <Text style={styles.selectedPhone}>{selectedSim.phoneNumber}</Text>
+        </View>
         <View style={styles.grid}>
           {selectedSim.enabledServices.map((svc) => {
             const meta = SERVICE_META[svc];
@@ -139,14 +143,20 @@ const styles = StyleSheet.create({
   simBadgeText: { fontSize: fontSize.sm, fontWeight: 'bold', color: colors.background },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
   emptyText: { fontSize: fontSize.md, color: colors.textLight },
+  backRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
   },
   backBtnText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
+  selectedPhone: { fontSize: fontSize.sm, color: colors.text, fontWeight: '700' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

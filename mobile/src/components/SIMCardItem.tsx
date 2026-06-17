@@ -82,6 +82,7 @@ function serviceLabel(svc: string): string {
     case 'AIRTIME': return 'Airtime';
     case 'BILL_PAYMENT': return 'Factures';
     case 'TV': return 'TV';
+    case 'GENERAL_MESSAGES': return 'Messages';
     default: return svc;
   }
 }

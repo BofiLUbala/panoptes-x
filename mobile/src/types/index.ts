@@ -65,6 +65,7 @@ export enum SimService {
   AIRTIME = 'AIRTIME',
   BILL_PAYMENT = 'BILL_PAYMENT',
   TV = 'TV',
+  GENERAL_MESSAGES = 'GENERAL_MESSAGES',
 }
 
 export interface SimCard {
