@@ -30,12 +30,13 @@ import { Operator, SimService } from '../types';
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS: Record<string, { focused: keyof typeof Ionicons.glyphMap; default: keyof typeof Ionicons.glyphMap }> = {
-  Historique: { focused: 'time', default: 'time-outline' },
   Dashboard: { focused: 'home', default: 'home-outline' },
   SIM: { focused: 'phone-portrait', default: 'phone-portrait-outline' },
-  GetHistory: { focused: 'time', default: 'time-outline' },
+  Historique: { focused: 'time', default: 'time-outline' },
   Subscription: { focused: 'card', default: 'card-outline' },
   Settings: { focused: 'person', default: 'person-outline' },
+  // GetHistory is a hidden tab (display: none) — no icon needed, but must be safe
+  GetHistory: { focused: 'document-text', default: 'document-text-outline' },
 };
 
 const OPERATORS: { key: Operator; label: string; color: string }[] = [
@@ -345,6 +346,9 @@ const AppNavigator: React.FC = () => {
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
             const icons = TAB_ICONS[route.name];
+            // Hidden tabs (e.g. GetHistory with display:'none') have no icon rendered,
+            // but the callback is still called — guard against undefined.
+            if (!icons) return null;
             return (
               <Ionicons
                 name={focused ? icons.focused : icons.default}

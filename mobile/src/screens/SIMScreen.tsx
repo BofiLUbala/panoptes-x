@@ -110,7 +110,7 @@ const SIMScreen: React.FC = () => {
         onPress={() => {
           if (selectedSim) {
             setEditPhoneNumber(selectedSim.phoneNumber);
-            setEditServices([]);
+            setEditServices([...selectedSim.enabledServices]);
             setEditModalVisible(true);
           }
         }}

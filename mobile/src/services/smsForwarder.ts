@@ -120,10 +120,12 @@ export const smsForwarder = {
   },
 
   stop(): void {
+    if (listenerStarted) {
+      console.log('[PANOPTES-X] SMS listener stopped');
+    }
     subscription?.remove();
     subscription = null;
     listenerStarted = false;
-    console.log('[PANOPTES-X] SMS listener stopped');
   },
 
   async flushQueue(): Promise<void> {
