@@ -1,10 +1,12 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  useWindowDimensions,
+  Platform,
+  PermissionsAndroid,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
@@ -40,6 +42,43 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
   const isLast = step === STEPS.length - 1;
 
+  const requestSmsPermission = useCallback(async () => {
+    if (Platform.OS !== 'android') return true;
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+        {
+          title: 'Permission de lecture des SMS',
+          message: 'Panoptes-x a besoin de lire vos SMS pour capturer automatiquement les transactions.',
+          buttonPositive: 'Autoriser',
+          buttonNegative: 'Refuser',
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_SMS,
+          {
+            title: 'Permission de lecture des SMS',
+            message: 'Permettez à Panoptes-x de lire vos SMS pour le suivi des transactions.',
+            buttonPositive: 'Autoriser',
+            buttonNegative: 'Refuser',
+          }
+        );
+      }
+    } catch {}
+  }, []);
+
+  const handleNext = useCallback(async () => {
+    if (step === 1) {
+      await requestSmsPermission();
+    }
+    if (isLast) {
+      onComplete();
+    } else {
+      setStep(step + 1);
+    }
+  }, [step, isLast, requestSmsPermission, onComplete]);
+
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
@@ -59,7 +98,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => (isLast ? onComplete() : setStep(step + 1))}
+          onPress={handleNext}
         >
           <Text style={styles.buttonText}>
             {isLast ? 'Commencer' : 'Suivant'}

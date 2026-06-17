@@ -34,13 +34,15 @@
     },
     "android": {
       "package": "com.panoptesx.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "POST_NOTIFICATIONS",
         "FOREGROUND_SERVICE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "RECEIVE_SMS",
+        "READ_SMS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -52,16 +54,17 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
             "minSdkVersion": 24,
             "extraMavenRepos": [],
-            "kotlinVersion": "2.0.21",
+            "kotlinVersion": "2.1.20",
             "extraProguardRules": "-keep class com.facebook.hermes.** { *; }\n-keep class com.facebook.jni.** { *; }\n-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.facebook.react.modules.** { *; }",
             "enableShrinkResourcesInReleaseBuilds": false
           }
         }
-      ]
+      ],
+      "./plugins/withSmsReceiver"
     ],
     "extra": {
       "eas": {

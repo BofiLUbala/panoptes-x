@@ -11,6 +11,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import { api } from './src/services/api';
 import { simStore } from './src/services/simStore';
+import { useMonitoringLifecycle } from './src/hooks/useMonitoring';
 
 type AppState = 'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main';
 
@@ -28,6 +29,8 @@ const AppContent: React.FC = () => {
     });
     return unsubscribe;
   }, []);
+
+  useMonitoringLifecycle(appState === 'main', userProfile);
 
   useEffect(() => {
     if (appState === 'main') {
