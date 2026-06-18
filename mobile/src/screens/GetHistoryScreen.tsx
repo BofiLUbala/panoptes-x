@@ -5,27 +5,32 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import AppHeader from '../components/AppHeader';
-import { TransactionType, Operator } from '../types';
+import { simStore } from '../services/simStore';
 import { getTransactions } from '../services/storage';
-import { parseSms } from '../services/smsParser';
+import { SimCard, SimService, Transaction, Operator, TransactionType } from '../types';
 
-type Filter = 'ALL' | TransactionType | Operator;
+type ViewMode = 'list' | 'detail';
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'ALL', label: 'Tout' },
-  { key: TransactionType.MOBILE_MONEY, label: 'Mobile Money' },
-  { key: TransactionType.AIRTIME, label: 'Unités' },
-  { key: TransactionType.BUNDLE, label: 'Mégas' },
-  { key: Operator.ORANGE, label: 'Orange' },
-  { key: Operator.AIRTEL, label: 'Airtel' },
-  { key: Operator.VODACOM, label: 'Vodacom' },
-  { key: Operator.AFRICELL, label: 'Africell' },
-];
+const SERVICE_ICONS: Record<SimService, keyof typeof Ionicons.glyphMap> = {
+  [SimService.MOBILE_MONEY]: 'swap-horizontal',
+  [SimService.DATA_BUNDLES]: 'globe',
+  [SimService.AIRTIME]: 'call',
+  [SimService.BILL_PAYMENT]: 'receipt',
+  [SimService.TV]: 'tv',
+  [SimService.GENERAL_MESSAGES]: 'chatbox-ellipses',
+};
+
+const SERVICE_COLORS: Record<SimService, string> = {
+  [SimService.MOBILE_MONEY]: '#22c55e',
+  [SimService.DATA_BUNDLES]: '#3b82f6',
+  [SimService.AIRTIME]: '#f59e0b',
+  [SimService.BILL_PAYMENT]: '#a78bfa',
+  [SimService.TV]: '#06b6d4',
+  [SimService.GENERAL_MESSAGES]: '#64748b',
+};
 
 function getTypeLabel(type: TransactionType): string {
   switch (type) {
@@ -36,17 +41,148 @@ function getTypeLabel(type: TransactionType): string {
   }
 }
 
-function getTypeColor(type: TransactionType): string {
-  switch (type) {
-    case TransactionType.MOBILE_MONEY: return colors.primary;
-    case TransactionType.AIRTIME: return colors.warning;
-    case TransactionType.BUNDLE: return colors.success;
-    case TransactionType.BILL_PAYMENT: return colors.danger;
-  }
-}
+const GetHistoryScreen: React.FC = () => {
+  const [sims, setSims] = useState<SimCard[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedSim, setSelectedSim] = useState<SimCard | null>(null);
 
-function getOperatorColor(operator: Operator): string {
-  switch (operator) {
+  useEffect(() => {
+    load();
+    const unsub = simStore.subscribe(load);
+    const interval = setInterval(load, 5000);
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, []);
+
+  async function load() {
+    setSims(simStore.getSims());
+    try {
+      setTransactions(await getTransactions());
+    } catch {}
+  }
+
+  function getTxForSim(sim: SimCard): Transaction[] {
+    return transactions.filter((tx) => tx.operator === sim.operator);
+  }
+
+  function getTxForService(sim: SimCard, service: SimService): Transaction[] {
+    const simTxs = getTxForSim(sim);
+    if (service === SimService.GENERAL_MESSAGES) {
+      return simTxs.filter((tx) => {
+        const txSvc = transactionToService(tx);
+        return !sim.enabledServices.some(
+          (s) => s !== SimService.GENERAL_MESSAGES && s === txSvc
+        );
+      });
+    }
+    return simTxs.filter((tx) => transactionToService(tx) === service);
+  }
+
+  function transactionToService(tx: Transaction): SimService {
+    switch (tx.type) {
+      case TransactionType.MOBILE_MONEY: return SimService.MOBILE_MONEY;
+      case TransactionType.AIRTIME: return SimService.AIRTIME;
+      case TransactionType.BUNDLE: return SimService.DATA_BUNDLES;
+      case TransactionType.BILL_PAYMENT: return SimService.BILL_PAYMENT;
+      default: return SimService.GENERAL_MESSAGES;
+    }
+  }
+
+  if (!selectedSim) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Historique par SIM</Text>
+        </View>
+
+        <ScrollView style={styles.list}>
+          {sims.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="phone-portrait-outline" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyTitle}>Aucune SIM</Text>
+              <Text style={styles.emptySubtitle}>
+                Ajoutez une SIM dans l'onglet "Mes SIM" depuis le menu Service.
+              </Text>
+            </View>
+          ) : (
+            sims.map((sim) => (
+              <TouchableOpacity
+                key={sim.id}
+                style={styles.simCard}
+                onPress={() => setSelectedSim(sim)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.simCardLeft}>
+                  <View style={[styles.operatorDot, { backgroundColor: getOperatorColor(sim.operator) }]} />
+                  <View>
+                    <Text style={styles.simPhone}>{sim.phoneNumber}</Text>
+                    <Text style={styles.simOperator}>{sim.operator}</Text>
+                  </View>
+                </View>
+                <View style={styles.simCardRight}>
+                  <Text style={styles.simServiceCount}>
+                    {sim.enabledServices.length} service{sim.enabledServices.length > 1 ? 's' : ''}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  const sim = selectedSim;
+  const services = sim.enabledServices;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.detailHeaderBar} />
+      <View style={styles.detailInfo}>
+        <TouchableOpacity onPress={() => setSelectedSim(null)} style={styles.detailBackBtn}>
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.detailPhone}>{sim.phoneNumber}</Text>
+        <View style={[styles.operatorBadge, { backgroundColor: getOperatorColor(sim.operator) + '20' }]}>
+          <Text style={[styles.operatorBadgeText, { color: getOperatorColor(sim.operator) }]}>{sim.operator}</Text>
+        </View>
+      </View>
+
+      <ScrollView style={styles.list}>
+        <View style={styles.servicesGrid}>
+          {services.map((service) => {
+            const txs = getTxForService(sim, service);
+            const icon = SERVICE_ICONS[service];
+            const color = SERVICE_COLORS[service];
+
+            return (
+              <View key={service} style={styles.gridCard}>
+                <View style={[styles.gridIconBox, { backgroundColor: color + '20' }]}>
+                  <Ionicons name={icon} size={24} color={color} />
+                </View>
+                <Text style={styles.gridServiceName} numberOfLines={1}>{serviceLabel(service)}</Text>
+                <Text style={styles.gridTxCount}>
+                  {txs.length} transaction{txs.length > 1 ? 's' : ''}
+                </Text>
+                {txs.length > 0 && (
+                  <View style={[styles.gridBadge, { backgroundColor: color }]}>
+                    <Text style={styles.gridBadgeText}>{txs.length}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+function getOperatorColor(op: Operator): string {
+  switch (op) {
     case Operator.ORANGE: return '#FF7900';
     case Operator.AIRTEL: return '#E11B22';
     case Operator.VODACOM: return '#00A94F';
@@ -54,244 +190,62 @@ function getOperatorColor(operator: Operator): string {
   }
 }
 
-interface DisplayTx {
-  id: string;
-  type: TransactionType;
-  operator: Operator;
-  amount?: number;
-  commission?: number;
-  volume?: number;
-  volumeUnit?: string;
-  timestamp: string;
-  rawSms: string;
+function serviceLabel(service: SimService): string {
+  switch (service) {
+    case SimService.MOBILE_MONEY: return 'Mobile Money';
+    case SimService.DATA_BUNDLES: return 'Data Bundles';
+    case SimService.AIRTIME: return 'Airtime (Crédit)';
+    case SimService.BILL_PAYMENT: return 'Paiement Factures';
+    case SimService.TV: return 'Abonnements TV';
+    case SimService.GENERAL_MESSAGES: return 'Messages généraux';
+  }
 }
 
-const TransactionItem: React.FC<{
-  tx: DisplayTx;
-  onPress: () => void;
-}> = ({ tx, onPress }) => (
-  <TouchableOpacity style={styles.txItem} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.txLeft}>
-      <View style={[styles.txDot, { backgroundColor: getTypeColor(tx.type) }]} />
-      <View>
-        <Text style={styles.txType}>{getTypeLabel(tx.type)}</Text>
-        <Text style={styles.txOperator}>{tx.operator}</Text>
-      </View>
-    </View>
-    <View style={styles.txRight}>
-      <Text style={[styles.txAmount, { color: getOperatorColor(tx.operator) }]}>
-        {tx.amount?.toLocaleString()} CDF
-      </Text>
-      {tx.commission ? (
-        <Text style={styles.txCommission}>+{tx.commission} CDF</Text>
-      ) : null}
-    </View>
-  </TouchableOpacity>
-);
-
-const GetHistoryScreen: React.FC = () => {
-  const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
-  const [transactions, setTransactions] = useState<DisplayTx[]>([]);
-  const [selectedTx, setSelectedTx] = useState<DisplayTx | null>(null);
-
-  useEffect(() => {
-    loadTransactions();
-    const interval = setInterval(loadTransactions, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadTransactions() {
-    try {
-      const stored = await getTransactions();
-      const mapped: DisplayTx[] = stored.map((t) => ({
-        id: t.id,
-        type: t.type,
-        operator: t.operator,
-        amount: t.amount,
-        commission: t.commission,
-        volume: t.volume,
-        volumeUnit: t.volumeUnit,
-        timestamp: t.timestamp,
-        rawSms: t.rawSms,
-      }));
-      setTransactions(mapped);
-    } catch {}
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
   }
-
-  const filteredTransactions =
-    activeFilter === 'ALL'
-      ? transactions
-      : transactions.filter((tx) => tx.type === activeFilter || tx.operator === activeFilter);
-
-  return (
-    <View style={styles.container}>
-      <AppHeader title="Historique" subtitle={`${filteredTransactions.length} transactions`} />
-
-      <ScrollView horizontal style={styles.filterRow} showsHorizontalScrollIndicator={false}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.chip, activeFilter === f.key && styles.chipActive]}
-            onPress={() => setActiveFilter(f.key)}
-          >
-            <Text style={[styles.chipText, activeFilter === f.key && styles.chipTextActive]}>
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView style={styles.list}>
-        {filteredTransactions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>Aucune transaction</Text>
-            <Text style={styles.emptySubtitle}>
-              Les transactions apparaîtront ici automatiquement après réception des SMS.
-            </Text>
-          </View>
-        ) : (
-          filteredTransactions.map((tx) => (
-            <TransactionItem key={tx.id} tx={tx} onPress={() => setSelectedTx(tx)} />
-          ))
-        )}
-      </ScrollView>
-
-      <Modal
-        visible={!!selectedTx}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedTx(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Détail de la transaction</Text>
-            {selectedTx && (
-              <>
-                <View style={styles.sheetRow}>
-                  <Text style={styles.sheetLabel}>Type</Text>
-                  <View style={[styles.sheetBadge, { backgroundColor: getTypeColor(selectedTx.type) }]}>
-                    <Text style={styles.sheetBadgeText}>{getTypeLabel(selectedTx.type)}</Text>
-                  </View>
-                </View>
-                <View style={styles.sheetRow}>
-                  <Text style={styles.sheetLabel}>Opérateur</Text>
-                  <Text style={styles.sheetValue}>{selectedTx.operator}</Text>
-                </View>
-                {selectedTx.amount && (
-                  <View style={styles.sheetRow}>
-                    <Text style={styles.sheetLabel}>Montant</Text>
-                    <Text style={styles.sheetValue}>{selectedTx.amount.toLocaleString()} CDF</Text>
-                  </View>
-                )}
-                {selectedTx.commission && (
-                  <View style={styles.sheetRow}>
-                    <Text style={styles.sheetLabel}>Commission</Text>
-                    <Text style={[styles.sheetValue, { color: colors.success }]}>
-                      +{selectedTx.commission} CDF
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.sheetDivider} />
-                <Text style={styles.sheetSmsLabel}>SMS brut</Text>
-                <View style={styles.sheetSmsBox}>
-                  <Text style={styles.sheetSmsText}>{selectedTx.rawSms}</Text>
-                </View>
-                <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedTx(null)}>
-                  <Text style={styles.closeButtonText}>Fermer</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filterRow: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '800',
+    color: colors.text,
   },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
+  headerSub: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    fontWeight: '500',
+    marginTop: 2,
   },
-  chipTextActive: {
-    color: colors.background,
-    fontWeight: '700',
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
   },
   list: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
     padding: spacing.md,
-  },
-  txItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  txLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  txDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  txType: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  txOperator: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  txRight: {
-    alignItems: 'flex-end',
-  },
-  txAmount: {
-    fontSize: fontSize.sm,
-    fontWeight: 'bold',
-  },
-  txCommission: {
-    fontSize: fontSize.xs,
-    color: colors.success,
-    marginTop: 2,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyTitle: {
     fontSize: fontSize.lg,
@@ -307,93 +261,137 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 20,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  bottomSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderBottomWidth: 0,
-    padding: spacing.lg,
-    paddingBottom: 40,
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  sheetTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  sheetRow: {
+  simCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  sheetLabel: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  sheetValue: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  sheetBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  sheetBadgeText: {
-    fontSize: fontSize.xs,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  sheetDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.sm,
-  },
-  sheetSmsLabel: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  sheetSmsBox: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
-  sheetSmsText: {
-    fontSize: fontSize.sm,
+  simCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  operatorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  simPhone: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
     color: colors.text,
-    lineHeight: 20,
   },
-  closeButton: {
-    backgroundColor: colors.primary,
+  simOperator: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  simCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  simServiceCount: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  detailHeaderBar: {
+    height: 44,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detailInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detailBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  detailPhone: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+  },
+  operatorBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  operatorBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  gridCard: {
+    width: '48%',
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     alignItems: 'center',
+    position: 'relative',
   },
-  closeButtonText: {
-    color: colors.background,
+  gridIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  gridServiceName: {
+    fontSize: fontSize.sm,
     fontWeight: '700',
-    fontSize: fontSize.md,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  gridTxCount: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  gridBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  gridBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.background,
   },
 });
 
