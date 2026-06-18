@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+import { getTransactions } from '../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import AppHeader from '../components/AppHeader';
@@ -89,8 +90,31 @@ const TransactionItem: React.FC<{
 
 const HistoryScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
-  const [transactions] = useState<HistoryTransaction[]>([]);
+  const [transactions, setTransactions] = useState<HistoryTransaction[]>([]);
   const [selectedTx, setSelectedTx] = useState<HistoryTransaction | null>(null);
+
+  useEffect(() => {
+    loadTx();
+    const interval = setInterval(loadTx, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function loadTx() {
+    try {
+      const stored = await getTransactions();
+      setTransactions(stored.map((t) => ({
+        id: t.id,
+        type: t.type,
+        operator: t.operator,
+        amount: t.amount,
+        commission: t.commission,
+        volume: t.volume,
+        volumeUnit: t.volumeUnit,
+        timestamp: t.timestamp,
+        rawSms: t.rawSms,
+      })));
+    } catch {}
+  }
 
   const filteredTransactions =
     activeFilter === 'ALL'
@@ -116,9 +140,19 @@ const HistoryScreen: React.FC = () => {
       </ScrollView>
 
       <ScrollView style={styles.list}>
-        {filteredTransactions.map((tx) => (
-          <TransactionItem key={tx.id} tx={tx} onPress={() => setSelectedTx(tx)} />
-        ))}
+        {filteredTransactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="document-text-outline" size={48} color={colors.textSecondary} />
+            <Text style={styles.emptyTitle}>Aucune transaction</Text>
+            <Text style={styles.emptySubtitle}>
+              Les transactions apparaîtront ici automatiquement après réception des SMS.
+            </Text>
+          </View>
+        ) : (
+          filteredTransactions.map((tx) => (
+            <TransactionItem key={tx.id} tx={tx} onPress={() => setSelectedTx(tx)} />
+          ))
+        )}
       </ScrollView>
 
       <Modal
@@ -176,6 +210,25 @@ const HistoryScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.md,
+  },
+  emptySubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: 40,
+    lineHeight: 20,
+  },
   filterRow: {
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
