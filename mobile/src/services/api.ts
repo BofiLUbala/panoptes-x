@@ -13,11 +13,21 @@ class AgentTrackApi {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 15000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     });
+
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (!error.response) {
+          console.warn('Network error - no response received');
+        }
+        return Promise.reject(error);
+      }
+    );
 
     console.log('PANOPTES-X API:', API_BASE_URL);
   }

@@ -27,6 +27,16 @@ function addSmsPermissions(androidManifest) {
   return androidManifest;
 }
 
+function addNetworkSecurityConfig(androidManifest) {
+  const application = androidManifest.manifest.application;
+  if (!application) return androidManifest;
+
+  const app = Array.isArray(application) ? application[0] : application;
+  if (!app.$) app.$ = {};
+  app.$['android:networkSecurityConfig'] = '@xml/network_security_config';
+  return androidManifest;
+}
+
 function addSmsReceiver(androidManifest) {
   const application = androidManifest.manifest.application;
   if (!application) return androidManifest;
@@ -99,6 +109,7 @@ module.exports = function withSmsReceiver(config) {
   config = withAndroidManifest(config, (config) => {
     config.modResults = addSmsPermissions(config.modResults);
     config.modResults = addSmsReceiver(config.modResults);
+    config.modResults = addNetworkSecurityConfig(config.modResults);
     return config;
   });
 
@@ -125,6 +136,23 @@ module.exports = function withSmsReceiver(config) {
         if (fs.existsSync(srcPath)) {
           fs.copyFileSync(srcPath, destPath);
         }
+      }
+
+      const xmlDir = path.join(platformRoot, 'app', 'src', 'main', 'res', 'xml');
+      if (!fs.existsSync(xmlDir)) {
+        fs.mkdirSync(xmlDir, { recursive: true });
+      }
+      const netSecConfigPath = path.join(xmlDir, 'network_security_config.xml');
+      if (!fs.existsSync(netSecConfigPath)) {
+        const configContent = `<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>`;
+        fs.writeFileSync(netSecConfigPath, configContent, 'utf8');
       }
 
       const mainAppPath = path.join(srcDir, 'MainApplication.java');
