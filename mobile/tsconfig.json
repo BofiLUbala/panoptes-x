@@ -11,13 +11,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "strict": true,
-    "target": "esnext",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "src/*"
-      ]
-    }
+    "target": "esnext"
   },
   "include": [
     "src/**/*",
