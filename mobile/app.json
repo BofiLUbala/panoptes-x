@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.panoptesx.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "usesCleartextTraffic": true,
       "permissions": [
         "INTERNET",
