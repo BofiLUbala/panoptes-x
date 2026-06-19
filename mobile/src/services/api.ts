@@ -3,6 +3,11 @@ import {
   Transaction,
   FailedParse,
   ServiceProfile,
+  Service,
+  PaymentItemRequest,
+  CreatePaymentResponse,
+  Subscription,
+  Payment,
 } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -117,6 +122,61 @@ class AgentTrackApi {
       throw new Error('Not authenticated');
     }
     const response: AxiosResponse = await this.client.get('/dashboard/');
+    return response.data;
+  }
+
+  async getServices(): Promise<Service[]> {
+    const response: AxiosResponse = await this.client.get('/services/');
+    return response.data;
+  }
+
+  async createPayment(network: string, items: PaymentItemRequest[]): Promise<CreatePaymentResponse> {
+    const response: AxiosResponse = await this.client.post('/payments/create/', {
+      network,
+      items,
+    });
+    return response.data;
+  }
+
+  async confirmPayment(paymentId: number, transactionReference: string): Promise<any> {
+    const response: AxiosResponse = await this.client.post('/payments/confirm/', {
+      payment_id: paymentId,
+      transaction_reference: transactionReference,
+    });
+    return response.data;
+  }
+
+  async getSubscriptions(): Promise<Subscription[]> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const response: AxiosResponse = await this.client.get('/subscriptions/');
+    return response.data;
+  }
+
+  async getPayments(): Promise<Payment[]> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const response: AxiosResponse = await this.client.get('/payments/');
+    return response.data;
+  }
+
+  async getDevices(): Promise<any[]> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const response: AxiosResponse = await this.client.get('/monitoring/devices/');
+    return response.data;
+  }
+
+  async registerDevice(phoneNumber: string): Promise<any> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+    const response: AxiosResponse = await this.client.post('/monitoring/register-device/', {
+      phone_number: phoneNumber,
+    });
     return response.data;
   }
 }

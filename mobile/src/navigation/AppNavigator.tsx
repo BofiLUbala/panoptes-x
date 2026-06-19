@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
@@ -398,6 +400,10 @@ const AppNavigator: React.FC = () => {
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleContainer}>
@@ -424,10 +430,11 @@ const AppNavigator: React.FC = () => {
               </View>
             )}
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {renderStepContent()}
             </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

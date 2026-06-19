@@ -119,3 +119,69 @@ export interface RegisteredDevice {
   created_at: string;
 }
 
+export interface GeneralMessage {
+  id: string;
+  sender: string;
+  message: string;
+  operator: Operator | null;
+  timestamp: string;
+  simId?: string;
+}
+
+export interface Service {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  price: number;
+  is_active: boolean;
+}
+
+export interface PaymentItemRequest {
+  device_id: number;
+  service_id: number;
+  duration_days: number;
+}
+
+export interface CreatePaymentResponse {
+  payment_id: number;
+  reference: string;
+  amount: number;
+  network: string;
+  status: string;
+}
+
+export interface Subscription {
+  id: number;
+  device_phone: string;
+  service_name: string;
+  service_code: string;
+  start_date: string;
+  expiry_date: string;
+  status: 'active' | 'expired' | 'suspended';
+  days_remaining: number;
+  created_at: string;
+}
+
+export interface Payment {
+  id: number;
+  invoice_reference: string;
+  amount: number;
+  network: string;
+  status: string;
+  transaction_reference: string;
+  notes: string;
+  created_at: string;
+  confirmed_at: string | null;
+  items: PaymentItem[];
+}
+
+export interface PaymentItem {
+  id: number;
+  device_phone: string;
+  service_name: string;
+  service_code: string;
+  amount: number;
+  duration_days: number;
+}
+

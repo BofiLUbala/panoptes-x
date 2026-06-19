@@ -1,6 +1,7 @@
 import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 import { parseSms } from './smsParser';
 import { saveTransaction, saveFailedParse } from './storage';
+import { saveGeneralMessage } from './generalMessages';
 import { smsQueue, QueuedSms } from './smsQueue';
 import { Operator, FailedParse, SyncStatus } from '../types';
 
@@ -21,6 +22,14 @@ let pollingInterval: ReturnType<typeof setInterval> | null = null;
 const handlers: Set<SmsHandler> = new Set();
 
 function processSms(sms: SmsEvent) {
+  const operator = detectOperatorFromSender(sms.sender);
+  saveGeneralMessage({
+    id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    sender: sms.sender,
+    message: sms.message,
+    operator,
+    timestamp: new Date(sms.timestamp).toISOString(),
+  });
   const parsed = parseSms(sms.message, sms.sender);
   if (parsed) {
     saveTransaction(parsed);
@@ -30,7 +39,6 @@ function processSms(sms: SmsEvent) {
       timestamp: new Date(sms.timestamp).toISOString(),
     });
   } else {
-    const operator = detectOperatorFromSender(sms.sender);
     const failed: FailedParse = {
       id: `fail-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       rawSms: sms.message,

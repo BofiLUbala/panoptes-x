@@ -6,7 +6,7 @@ const API_PORT = 8000;
 // Mets ici l'IP du PC où tourne le backend Django
 // Trouve-la avec: ipconfig (cherche IPv4)
 // ============================================
-const API_HOST = '10.130.154.79';
+const API_HOST = '10.221.189.79';
 
 function getApiBaseUrl(): string {
   if (Platform.OS === 'web') {

@@ -5,14 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { simStore } from '../services/simStore';
 import { getTransactions } from '../services/storage';
-import { SimCard, SimService, Transaction, Operator, TransactionType } from '../types';
-
-type ViewMode = 'list' | 'detail';
+import { api } from '../services/api';
+import { SimCard, SimService, Transaction, Operator, TransactionType, Subscription } from '../types';
 
 const SERVICE_ICONS: Record<SimService, keyof typeof Ionicons.glyphMap> = {
   [SimService.MOBILE_MONEY]: 'swap-horizontal',
@@ -45,22 +46,63 @@ const GetHistoryScreen: React.FC = () => {
   const [sims, setSims] = useState<SimCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedSim, setSelectedSim] = useState<SimCard | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
 
   useEffect(() => {
-    load();
-    const unsub = simStore.subscribe(load);
-    const interval = setInterval(load, 5000);
+    loadSimsAndTx();
+    loadSubscriptions();
+    const unsub = simStore.subscribe(loadSimsAndTx);
+    const interval = setInterval(loadSimsAndTx, 5000);
     return () => {
       unsub();
       clearInterval(interval);
     };
   }, []);
 
-  async function load() {
+  async function loadSimsAndTx() {
     setSims(simStore.getSims());
     try {
       setTransactions(await getTransactions());
     } catch {}
+  }
+
+  async function loadSubscriptions() {
+    try {
+      const subs = await api.getSubscriptions();
+      setSubscriptions(subs);
+    } catch {
+      setSubscriptions([]);
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  }
+
+  function hasActiveSubscription(phoneNumber: string): boolean {
+    return subscriptions.some(
+      s => s.device_phone === phoneNumber && s.status === 'active'
+    );
+  }
+
+  function handleSimPress(sim: SimCard) {
+    if (subscriptionsLoading) return;
+    if (hasActiveSubscription(sim.phoneNumber)) {
+      setSelectedSim(sim);
+    } else {
+      Alert.alert(
+        'Abonnement requis',
+        `Vous n'avez pas d'abonnement actif pour le numéro ${sim.phoneNumber}.\n\nSouscrivez un abonnement dans l'onglet Abonnement pour accéder à l'historique.`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Voir les abonnements',
+            onPress: () => {
+              // Navigate to subscription tab — fire and forget
+            },
+          },
+        ]
+      );
+    }
   }
 
   function getTxForSim(sim: SimCard): Transaction[] {
@@ -107,28 +149,41 @@ const GetHistoryScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            sims.map((sim) => (
-              <TouchableOpacity
-                key={sim.id}
-                style={styles.simCard}
-                onPress={() => setSelectedSim(sim)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.simCardLeft}>
-                  <View style={[styles.operatorDot, { backgroundColor: getOperatorColor(sim.operator) }]} />
-                  <View>
-                    <Text style={styles.simPhone}>{sim.phoneNumber}</Text>
-                    <Text style={styles.simOperator}>{sim.operator}</Text>
+            sims.map((sim) => {
+              const hasSub = hasActiveSubscription(sim.phoneNumber);
+              return (
+                <TouchableOpacity
+                  key={sim.id}
+                  style={styles.simCard}
+                  onPress={() => handleSimPress(sim)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.simCardLeft}>
+                    <View style={[styles.operatorDot, { backgroundColor: getOperatorColor(sim.operator) }]} />
+                    <View>
+                      <Text style={styles.simPhone}>{sim.phoneNumber}</Text>
+                      <Text style={styles.simOperator}>{sim.operator}</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.simCardRight}>
-                  <Text style={styles.simServiceCount}>
-                    {sim.enabledServices.length} service{sim.enabledServices.length > 1 ? 's' : ''}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={styles.simCardRight}>
+                    {hasSub ? (
+                      <View style={styles.subActiveBadge}>
+                        <Ionicons name="shield-checkmark" size={12} color={colors.success} />
+                        <Text style={styles.subActiveText}>Actif</Text>
+                      </View>
+                    ) : subscriptionsLoading ? (
+                      <ActivityIndicator size="small" color={colors.textLight} />
+                    ) : (
+                      <View style={styles.subInactiveBadge}>
+                        <Ionicons name="lock-closed" size={12} color={colors.warning} />
+                        <Text style={styles.subInactiveText}>Non</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
       </View>
@@ -201,15 +256,6 @@ function serviceLabel(service: SimService): string {
   }
 }
 
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
@@ -225,18 +271,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '800',
     color: colors.text,
-  },
-  headerSub: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm,
   },
   list: {
     flex: 1,
@@ -297,10 +331,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  simServiceCount: {
+  subActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.success + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  subActiveText: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    fontWeight: '600',
+    color: colors.success,
+    fontWeight: '700',
+  },
+  subInactiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.warning + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  subInactiveText: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    fontWeight: '700',
   },
   detailHeaderBar: {
     height: 44,
