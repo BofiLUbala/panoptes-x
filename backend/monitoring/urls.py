@@ -9,4 +9,5 @@ urlpatterns = [
     path('monitoring/watch-relations/', views.WatchRelationsView.as_view(), name='watch-relations'),
     path('monitoring/forward-sms/', views.ForwardSmsView.as_view(), name='forward-sms'),
     path('monitoring/get-sms/', views.GetSmsView.as_view(), name='get-sms'),
+    path('monitoring/devices/', views.UserDevicesView.as_view(), name='user-devices'),
 ]

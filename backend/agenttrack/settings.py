@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'authentication',
     'transactions',
     'monitoring',
+    'subscriptions',
 ]
 
 MIDDLEWARE = [

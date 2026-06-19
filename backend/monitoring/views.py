@@ -381,3 +381,11 @@ class GetSmsView(APIView):
         serializer = ForwardedSmsSerializer(items, many=True)
         logger.info('get-sms: watcher=%s target=%s count=%s', watcher.phone_number, target_phone, total)
         return Response({'results': serializer.data, 'count': total, 'page': page, 'page_size': page_size})
+
+
+class UserDevicesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        devices = Device.objects.filter(user=request.user)
+        return Response(DeviceSerializer(devices, many=True).data)
