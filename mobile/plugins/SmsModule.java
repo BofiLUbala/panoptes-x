@@ -78,7 +78,7 @@ public class SmsModule extends ReactContextBaseJavaModule {
                 null,
                 null,
                 null,
-                Telephony.Sms.Inbox.DEFAULT_SORT_ORDER + " DESC LIMIT 50"
+                Telephony.Sms.Inbox.DEFAULT_SORT_ORDER + " LIMIT 50"
             );
             if (cursor != null) {
                 while (cursor.moveToNext()) {

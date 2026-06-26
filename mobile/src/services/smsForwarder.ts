@@ -1,11 +1,11 @@
-import { NativeModules, NativeEventEmitter, Platform, PermissionsAndroid } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Platform, PermissionsAndroid } from 'react-native';
 import { parseSms } from './smsParser';
 import { saveTransaction, saveFailedParse } from './storage';
 import { saveGeneralMessage } from './generalMessages';
 import { smsQueue, QueuedSms } from './smsQueue';
 import { Operator, FailedParse, SyncStatus } from '../types';
 
-const { SmsModule } = NativeModules;
+const SmsModule = NativeModules.SmsModule;
 
 type SmsEvent = {
   sender: string;
@@ -15,7 +15,6 @@ type SmsEvent = {
 
 type SmsHandler = (sms: SmsEvent) => void;
 
-let emitter: NativeEventEmitter | null = null;
 let subscription: any = null;
 let isRunning = false;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -80,7 +79,7 @@ async function pollPendingSms() {
       }
     }
   } catch (e) {
-    /* silent */
+    console.warn('[SmsForwarder] pollPendingSms failed:', e);
   }
 }
 
@@ -94,7 +93,7 @@ async function pollSmsInbox() {
       }
     }
   } catch (e) {
-    /* silent */
+    console.warn('[SmsForwarder] pollSmsInbox failed:', e);
   }
 }
 
@@ -125,8 +124,7 @@ export const smsForwarder = {
 
     if (Platform.OS === 'android' && SmsModule) {
       try {
-        emitter = new NativeEventEmitter(SmsModule);
-        subscription = emitter.addListener('SmsReceived', (sms: SmsEvent) => {
+        subscription = DeviceEventEmitter.addListener('SmsReceived', (sms: SmsEvent) => {
           processSms(sms);
         });
         const pending = await SmsModule.getPendingSms();
@@ -135,8 +133,8 @@ export const smsForwarder = {
             processSms(sms as SmsEvent);
           }
         }
-      } catch {
-        /* silent */
+      } catch (e) {
+        console.warn('[SmsForwarder] Failed to setup SMS listener:', e);
       }
     }
 
@@ -157,7 +155,6 @@ export const smsForwarder = {
       clearInterval(pollingInterval);
       pollingInterval = null;
     }
-    emitter = null;
   },
 
   async flushQueue(): Promise<void> {
