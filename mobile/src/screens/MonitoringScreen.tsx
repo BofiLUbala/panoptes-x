@@ -6,21 +6,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import { getGeneralMessages, clearGeneralMessages } from '../services/generalMessages';
-import { GeneralMessage } from '../types';
+import { api } from '../services/api';
+import { getGeneralMessages } from '../services/generalMessages';
+import { GeneralMessage, ForwardedSms } from '../types';
 import AppHeader from '../components/AppHeader';
 
-function getOperatorColor(operator: string | null): string {
-  switch (operator) {
-    case 'AIRTEL': return '#E11B22';
-    case 'ORANGE': return '#FF7900';
-    case 'VODACOM': return '#00A94F';
-    case 'AFRICELL': return '#ED1C24';
-    default: return colors.textSecondary;
-  }
+interface DisplayMessage {
+  id: string;
+  sender: string;
+  message: string;
+  timestamp: string;
+  source: 'local' | 'server';
+  targetPhone?: string;
 }
 
 function formatTime(ts: string): string {
@@ -34,17 +35,53 @@ function formatTime(ts: string): string {
 }
 
 const MonitoringScreen: React.FC = () => {
-  const [messages, setMessages] = useState<GeneralMessage[]>([]);
-  const [selectedMsg, setSelectedMsg] = useState<GeneralMessage | null>(null);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [selectedMsg, setSelectedMsg] = useState<DisplayMessage | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const msgs = await getGeneralMessages();
-    setMessages(msgs);
+    try {
+      const localMsgs = await getGeneralMessages();
+      const all: DisplayMessage[] = localMsgs.map(m => ({
+        id: m.id,
+        sender: m.sender,
+        message: m.message,
+        timestamp: m.timestamp,
+        source: 'local' as const,
+      }));
+
+      try {
+        const relations = await api.getWatchRelations();
+        const activeTargets = relations.filter(r => r.status === 'active');
+        for (const rel of activeTargets) {
+          const data = await api.getForwardedSms(rel.target_phone);
+          for (const sms of data.results) {
+            all.push({
+              id: `svr-${sms.id}`,
+              sender: sms.sender,
+              message: sms.message,
+              timestamp: sms.received_at,
+              source: 'server' as const,
+              targetPhone: sms.target_phone,
+            });
+          }
+        }
+      } catch {
+        // serveur pas disponible, on garde juste les messages locaux
+      }
+
+      all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setMessages(all);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 3000);
+    const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
 
@@ -52,23 +89,18 @@ const MonitoringScreen: React.FC = () => {
     <View style={styles.container}>
       <AppHeader title="Messages généraux" subtitle={`${messages.length} message(s)`} />
 
-      {messages.length > 0 && (
-        <TouchableOpacity style={styles.clearBtn} onPress={async () => {
-          await clearGeneralMessages();
-          setMessages([]);
-        }} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={14} color={colors.danger} />
-          <Text style={styles.clearBtnText}>Tout effacer</Text>
-        </TouchableOpacity>
-      )}
-
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {messages.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbox-ellipses-outline" size={48} color={colors.textSecondary} />
             <Text style={styles.emptyTitle}>Aucun message</Text>
             <Text style={styles.emptySubtitle}>
-              Les SMS reçus apparaîtront ici automatiquement.
+              Les SMS captés apparaîtront ici automatiquement.
             </Text>
           </View>
         ) : (
@@ -80,8 +112,9 @@ const MonitoringScreen: React.FC = () => {
               activeOpacity={0.7}
             >
               <View style={styles.msgHeader}>
-                <View style={[styles.senderDot, { backgroundColor: getOperatorColor(msg.operator) }]} />
+                <View style={[styles.sourceDot, { backgroundColor: msg.source === 'local' ? colors.primary : colors.success }]} />
                 <Text style={styles.msgSender} numberOfLines={1}>{msg.sender}</Text>
+                {msg.targetPhone && <Text style={styles.msgTarget}>{msg.targetPhone}</Text>}
                 <Text style={styles.msgTime}>{formatTime(msg.timestamp)}</Text>
               </View>
               <Text style={styles.msgBody} numberOfLines={2}>{msg.message}</Text>
@@ -89,6 +122,7 @@ const MonitoringScreen: React.FC = () => {
           ))
         )}
       </ScrollView>
+      )}
 
       <Modal
         visible={!!selectedMsg}
@@ -102,12 +136,8 @@ const MonitoringScreen: React.FC = () => {
             {selectedMsg && (
               <>
                 <View style={styles.sheetHeader}>
-                  <View style={[styles.senderBadge, { borderColor: getOperatorColor(selectedMsg.operator) }]}>
-                    <Text style={[styles.senderBadgeText, { color: getOperatorColor(selectedMsg.operator) }]}>
-                      {selectedMsg.operator || 'INCONNU'}
-                    </Text>
-                  </View>
                   <Text style={styles.sheetSender}>{selectedMsg.sender}</Text>
+                  {selectedMsg.targetPhone && <Text style={styles.sheetTarget}>{selectedMsg.targetPhone}</Text>}
                   <Text style={styles.sheetTime}>{formatTime(selectedMsg.timestamp)}</Text>
                 </View>
                 <View style={styles.sheetBody}>
@@ -127,23 +157,10 @@ const MonitoringScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    gap: spacing.xs,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.danger + '40',
-    backgroundColor: colors.danger + '10',
-  },
-  clearBtnText: {
-    fontSize: fontSize.sm,
-    color: colors.danger,
-    fontWeight: '600',
+    alignItems: 'center',
   },
   list: { flex: 1 },
   listContent: { padding: spacing.md, paddingBottom: 40 },
@@ -180,7 +197,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  senderDot: {
+  sourceDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
@@ -189,7 +206,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '700',
     color: colors.text,
+  },
+  msgTarget: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
     flex: 1,
+    marginLeft: spacing.xs,
   },
   msgTime: {
     fontSize: fontSize.xs,
@@ -229,21 +251,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     gap: spacing.xs,
   },
-  senderBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-  },
-  senderBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
   sheetSender: {
     fontSize: fontSize.lg,
     fontWeight: '700',
     color: colors.text,
+  },
+  sheetTarget: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   sheetTime: {
     fontSize: fontSize.sm,

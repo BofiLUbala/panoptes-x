@@ -1,17 +1,36 @@
 from rest_framework import serializers
-from .models import Device, WatchRelation, ForwardedSms
+from .models import Device, WatchRelation, ForwardedSms, DeviceHeartbeat
 
 
 class DeviceRegisterSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=20)
     fcm_token = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    device_name = serializers.CharField(required=False, allow_blank=True)
+    device_model = serializers.CharField(required=False, allow_blank=True)
+    os_version = serializers.CharField(required=False, allow_blank=True)
+    app_version = serializers.CharField(required=False, allow_blank=True)
+    fingerprint = serializers.CharField(required=False, allow_blank=True)
 
 
 class DeviceSerializer(serializers.ModelSerializer):
+    is_healthy = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Device
-        fields = ['id', 'phone_number', 'device_secret', 'fcm_token', 'created_at']
-        read_only_fields = ['id', 'device_secret', 'created_at']
+        fields = [
+            'id', 'phone_number', 'device_secret', 'fcm_token',
+            'device_name', 'device_model', 'os_version', 'app_version', 'fingerprint',
+            'is_blocked', 'is_active', 'is_healthy',
+            'last_heartbeat_at', 'heartbeat_interval',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'device_secret', 'created_at', 'updated_at']
+
+
+class HeartbeatSerializer(serializers.Serializer):
+    battery_level = serializers.FloatField(required=False)
+    network_type = serializers.CharField(required=False, allow_blank=True)
+    signal_strength = serializers.IntegerField(required=False)
 
 
 class AuthorizeWatcherSerializer(serializers.Serializer):
@@ -57,3 +76,10 @@ class ForwardedSmsSerializer(serializers.ModelSerializer):
             'id', 'target_phone', 'sender', 'message',
             'received_at', 'created_at',
         ]
+
+
+class DeviceHeartbeatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceHeartbeat
+        fields = ['id', 'battery_level', 'network_type', 'signal_strength', 'created_at']
+        read_only_fields = ['id', 'created_at']

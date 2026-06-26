@@ -11,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { simStore } from '../services/simStore';
-import { getTransactions } from '../services/storage';
 import { api } from '../services/api';
 import { SimCard, SimService, Transaction, Operator, TransactionType, Subscription } from '../types';
 
@@ -63,7 +62,19 @@ const GetHistoryScreen: React.FC = () => {
   async function loadSimsAndTx() {
     setSims(simStore.getSims());
     try {
-      setTransactions(await getTransactions());
+      const serverTx = await api.getTransactionsFromServer();
+      setTransactions(serverTx.map((t: any) => ({
+        id: String(t.id),
+        operator: t.operator,
+        type: t.type,
+        amount: t.amount ? Number(t.amount) : undefined,
+        volume: t.volume ? Number(t.volume) : undefined,
+        volumeUnit: t.volume_unit,
+        commission: t.commission ? Number(t.commission) : undefined,
+        rawSms: t.raw_sms,
+        timestamp: t.transaction_date,
+        syncStatus: 1,
+      })));
     } catch {}
   }
 

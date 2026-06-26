@@ -1,5 +1,4 @@
 ﻿import re
-import random
 from rest_framework import serializers
 from .models import User
 
@@ -24,7 +23,7 @@ class RegisterSerializer(serializers.Serializer):
                 {
                     'username': {
                         'error_code': 'ERR_REG_DUP_USERNAME',
-                        'message': 'Ce nom d\'utilisateur est déjà utilisé.',
+                        'message': "Ce nom d'utilisateur est deja utilise.",
                     }
                 }
             )
@@ -35,7 +34,7 @@ class RegisterSerializer(serializers.Serializer):
             email = attrs['email'].strip().lower()
             if User.objects.filter(email__iexact=email).exists():
                 raise serializers.ValidationError(
-                    {'email': {'error_code': 'ERR_REG_DUP_EMAIL', 'message': 'Cet email est déjà utilisé.'}}
+                    {'email': {'error_code': 'ERR_REG_DUP_EMAIL', 'message': 'Cet email est deja utilise.'}}
                 )
             attrs['email'] = email
             attrs['phone'] = None
@@ -43,20 +42,20 @@ class RegisterSerializer(serializers.Serializer):
 
         elif method == 'phone':
             if not attrs.get('phone'):
-                raise serializers.ValidationError({'phone': 'Le téléphone est requis.'})
+                raise serializers.ValidationError({'phone': 'Le telephone est requis.'})
             if User.objects.filter(phone=attrs['phone']).exists():
                 raise serializers.ValidationError(
-                    {'phone': {'error_code': 'ERR_REG_DUP_PHONE', 'message': 'Ce numéro est déjà utilisé.'}}
+                    {'phone': {'error_code': 'ERR_REG_DUP_PHONE', 'message': 'Ce numero est deja utilise.'}}
                 )
             attrs['email'] = ''
             attrs['whatsapp_number'] = None
 
         elif method == 'whatsapp':
             if not attrs.get('whatsapp_number'):
-                raise serializers.ValidationError({'whatsapp_number': 'Le numéro WhatsApp est requis.'})
+                raise serializers.ValidationError({'whatsapp_number': 'Le numero WhatsApp est requis.'})
             if User.objects.filter(whatsapp_number=attrs['whatsapp_number']).exists():
                 raise serializers.ValidationError(
-                    {'whatsapp_number': {'error_code': 'ERR_REG_DUP_WHATSAPP', 'message': 'Ce numéro WhatsApp est déjà utilisé.'}}
+                    {'whatsapp_number': {'error_code': 'ERR_REG_DUP_WHATSAPP', 'message': 'Ce numero WhatsApp est deja utilise.'}}
                 )
             attrs['phone'] = attrs['whatsapp_number']
             attrs['email'] = ''
@@ -64,7 +63,7 @@ class RegisterSerializer(serializers.Serializer):
         password = attrs.get('password', '')
         errors = []
         if len(password) < 8 or len(password) > 16:
-            errors.append('Le mot de passe doit contenir entre 8 et 16 caractères.')
+            errors.append('Le mot de passe doit contenir entre 8 et 16 caracteres.')
         if not re.search(r'[A-Z]', password):
             errors.append('Doit contenir au moins une majuscule.')
         if not re.search(r'[a-z]', password):
@@ -72,7 +71,7 @@ class RegisterSerializer(serializers.Serializer):
         if not re.search(r'[0-9]', password):
             errors.append('Doit contenir au moins un chiffre.')
         if not re.search(r'[$@!%*?&]', password):
-            errors.append('Doit contenir au moins un caractère spécial ($@!%*?&).')
+            errors.append('Doit contenir au moins un caractere special ($@!%*?&).')
         if errors:
             raise serializers.ValidationError({'password': errors})
 
@@ -120,4 +119,3 @@ class UserSerializer(serializers.ModelSerializer):
             'email_verified', 'created_at',
         ]
         read_only_fields = ['id', 'email_verified', 'created_at']
-

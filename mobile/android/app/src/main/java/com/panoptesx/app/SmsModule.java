@@ -1,5 +1,8 @@
 package com.panoptesx.app;
 
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.Telephony;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -61,6 +64,38 @@ public class SmsModule extends ReactContextBaseJavaModule {
                 arr.pushMap(sms);
             }
             pendingSms.clear();
+        }
+        promise.resolve(arr);
+    }
+
+    @ReactMethod
+    public void queryRecentSms(Promise promise) {
+        WritableArray arr = Arguments.createArray();
+        try {
+            Uri uri = Telephony.Sms.Inbox.CONTENT_URI;
+            Cursor cursor = reactContext.getContentResolver().query(
+                uri,
+                null,
+                null,
+                null,
+                Telephony.Sms.Inbox.DEFAULT_SORT_ORDER + " DESC LIMIT 50"
+            );
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    String address = cursor.getString(cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.ADDRESS));
+                    String body = cursor.getString(cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.BODY));
+                    long date = cursor.getLong(cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.DATE));
+
+                    WritableMap map = Arguments.createMap();
+                    map.putString("sender", address != null ? address : "");
+                    map.putString("message", body != null ? body : "");
+                    map.putDouble("timestamp", (double) date);
+                    arr.pushMap(map);
+                }
+                cursor.close();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to query SMS inbox", e);
         }
         promise.resolve(arr);
     }

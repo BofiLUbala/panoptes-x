@@ -17,8 +17,6 @@ import DataCard from '../components/DataCard';
 import ActionDeck from '../components/ActionDeck';
 import { api } from '../services/api';
 import { simStore } from '../services/simStore';
-import { getTransactions, getPendingSyncTransactions } from '../services/storage';
-import { getGeneralMessages } from '../services/generalMessages';
 import { Subscription } from '../types';
 
 type SystemStatus = 'active' | 'warning' | 'inactive';
@@ -93,20 +91,28 @@ const DashboardScreen: React.FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [subs, devices, tx, pending, msgs] = await Promise.all([
+      const [subs, devices, serverTx, relations] = await Promise.all([
         api.getSubscriptions().catch(() => [] as Subscription[]),
         api.getDevices().catch(() => []),
-        getTransactions(),
-        getPendingSyncTransactions(),
-        getGeneralMessages(),
+        api.getTransactionsFromServer().catch(() => []),
+        api.getWatchRelations().catch(() => []),
       ]);
+
+      const allSms: any[] = [];
+      const activeTargets = relations.filter(r => r.status === 'active');
+      for (const rel of activeTargets) {
+        try {
+          const data = await api.getForwardedSms(rel.target_phone);
+          allSms.push(...data.results);
+        } catch { /* skip */ }
+      }
 
       setSubscriptions(subs);
       setDeviceCount(devices.length);
-      setTxCount(tx.length);
-      setPendingCount(pending.length);
-      setMsgCount(msgs.length);
-      setMmTxCount(tx.filter(t => t.type === 'MOBILE_MONEY').length);
+      setTxCount(serverTx.length);
+      setPendingCount(0);
+      setMsgCount(allSms.length);
+      setMmTxCount(serverTx.filter(t => t.type === 'MOBILE_MONEY').length);
     } catch (e) {
       console.error('Dashboard load error:', e);
     }

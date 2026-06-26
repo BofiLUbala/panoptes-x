@@ -103,7 +103,7 @@ const AppNavigator: React.FC = () => {
     });
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedOp) return;
     const invalid = phoneNumbers.some((n) => n.trim().length < 9);
     if (invalid) {
@@ -115,7 +115,28 @@ const AppNavigator: React.FC = () => {
     }
 
     const finalNumbers = phoneNumbers.map((n) => countryCode + n);
+    const existingSims = simStore.getSims();
+    const existingNumbers = new Set(existingSims.map(s => s.phoneNumber));
+    const alreadyExists = finalNumbers.filter(n => existingNumbers.has(n));
+
+    if (alreadyExists.length > 0) {
+      Alert.alert(
+        'SIM déjà enregistrée',
+        `Le(s) numéro(s) suivant(s) sont déjà dans votre base :\n${alreadyExists.join('\n')}`
+      );
+      return;
+    }
+
     simStore.addSims(selectedOp, finalNumbers, selectedServices);
+
+    for (const num of finalNumbers) {
+      try {
+        await api.registerDevice(num);
+      } catch {
+        // continue même si le serveur n'est pas joignable
+      }
+    }
+
     Alert.alert(
       'Succès',
       `${phoneNumbers.length} SIM(s) ${selectedOpInfo?.label} ajoutée(s) avec ${selectedServices.length} service(s) !`

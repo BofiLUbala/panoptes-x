@@ -12,39 +12,52 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import { SimCard, SimService, SimTransaction } from '../types';
+import { SimCard, SimService, SimTransaction, Operator } from '../types';
 import SIMServiceConfig from '../components/SIMServiceConfig';
 import AppHeader from '../components/AppHeader';
 import SIMCardItem from '../components/SIMCardItem';
 import SIMDetailPanel from '../components/SIMDetailPanel';
 import { simStore } from '../services/simStore';
+import { api } from '../services/api';
 
 const SIMScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
-  const [sims, setSims] = useState<SimCard[]>(simStore.getSims());
+  const [sims, setSims] = useState<SimCard[]>([]);
   const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = simStore.subscribe(() => {
-      const updated = simStore.getSims();
-      setSims(updated);
-      // Auto-select first if nothing selected
-      setSelectedSimId((prev) => {
-        if (prev && updated.find((s) => s.id === prev)) return prev;
-        return updated.length > 0 ? updated[0].id : null;
-      });
-    });
-    // Sync initial state
-    const initial = simStore.getSims();
-    setSims(initial);
-    if (initial.length > 0 && !selectedSimId) {
-      setSelectedSimId(initial[0].id);
+  const syncFromServer = useCallback(async () => {
+    try {
+      const devices = await api.getDevices();
+      const localSims = simStore.getSims();
+      const localNumbers = new Set(localSims.map(s => s.phoneNumber));
+      const merged = [...localSims];
+      for (const d of devices) {
+        if (!localNumbers.has(d.phone_number)) {
+          merged.push({
+            id: `server-${d.id}`,
+            operator: Operator.AIRTEL,
+            phoneNumber: d.phone_number,
+            cashBalance: 0,
+            enabledServices: [],
+          });
+        }
+      }
+      setSims(merged);
+    } catch {
+      setSims(simStore.getSims());
     }
-    return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    syncFromServer();
+    const unsubscribe = simStore.subscribe(() => {
+      syncFromServer();
+    });
+    return unsubscribe;
+  }, [syncFromServer]);
 
   const selectedSim = sims.find((s) => s.id === selectedSimId) || null;
   const transactions: SimTransaction[] = [];

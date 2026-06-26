@@ -1,18 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { api } from '../services/api';
 import AppLogo from '../components/AppLogo';
@@ -29,26 +20,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
   const [loading, setLoading] = useState(false);
   const pwdRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    const loadCredentials = async () => {
-      try {
-        const savedId = await AsyncStorage.getItem('@panoptes_id');
-        const savedPwd = await AsyncStorage.getItem('@panoptes_pwd');
-        if (savedId) setIdentifier(savedId);
-        if (savedPwd) setPassword(savedPwd);
-      } catch (e) {}
-    };
-    loadCredentials();
-  }, []);
-
   const handleLogin = async () => {
     setLoading(true);
     try {
       await api.login(identifier, password);
-      try {
-        await AsyncStorage.setItem('@panoptes_id', identifier);
-        await AsyncStorage.setItem('@panoptes_pwd', password);
-      } catch (e) {}
       onLogin();
     } catch (err: any) {
       console.error('Login error:', err);
@@ -141,62 +116,23 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
   header: { alignItems: 'center', marginBottom: spacing.xl },
   logoBox: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
+    width: 72, height: 72, borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.white,
-    letterSpacing: 1.5,
-  },
-  tagline: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    paddingHorizontal: 20,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
-  cardTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
+  appName: { fontSize: 28, fontWeight: '800', color: colors.white, letterSpacing: 1.5 },
+  tagline: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs, paddingHorizontal: 20 },
+  card: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  cardTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
   inputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.background,
+    borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border,
+    marginBottom: spacing.md, paddingHorizontal: spacing.md,
   },
   inputIcon: { marginRight: spacing.sm },
   input: { flex: 1, paddingVertical: spacing.md - 2, fontSize: 15, color: colors.text },
   eyeButton: { padding: 6 },
-  loginButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
-    paddingVertical: spacing.md - 2,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
+  loginButton: { backgroundColor: colors.primary, borderRadius: borderRadius.sm, paddingVertical: spacing.md - 2, alignItems: 'center', marginTop: spacing.sm },
   loginButtonDisabled: { opacity: 0.45 },
   loginButtonText: { color: colors.background, fontWeight: '700', fontSize: fontSize.md },
   registerLink: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.sm },

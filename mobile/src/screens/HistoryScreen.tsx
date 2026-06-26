@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
-import { getTransactions } from '../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
+import { api } from '../services/api';
+import { Transaction, TransactionType, Operator } from '../types';
 import AppHeader from '../components/AppHeader';
-import { TransactionType, Operator } from '../types';
 
 type Filter = 'ALL' | TransactionType | Operator;
 
@@ -53,20 +54,8 @@ function getOperatorColor(operator: Operator): string {
   }
 }
 
-interface HistoryTransaction {
-  id: string;
-  type: TransactionType;
-  operator: Operator;
-  amount?: number;
-  commission?: number;
-  volume?: number;
-  volumeUnit?: string;
-  timestamp: string;
-  rawSms: string;
-}
-
 const TransactionItem: React.FC<{
-  tx: HistoryTransaction;
+  tx: Transaction;
   onPress: () => void;
 }> = ({ tx, onPress }) => (
   <TouchableOpacity style={styles.txItem} onPress={onPress} activeOpacity={0.7}>
@@ -90,31 +79,40 @@ const TransactionItem: React.FC<{
 
 const HistoryScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
-  const [transactions, setTransactions] = useState<HistoryTransaction[]>([]);
-  const [selectedTx, setSelectedTx] = useState<HistoryTransaction | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadTx = useCallback(async () => {
+    try {
+      const data = await api.getTransactionsFromServer();
+      setTransactions(data.map((t: any) => ({
+        id: String(t.id),
+        operator: t.operator,
+        type: t.type,
+        amount: t.amount ? Number(t.amount) : undefined,
+        currency: t.currency,
+        volume: t.volume ? Number(t.volume) : undefined,
+        volumeUnit: t.volume_unit,
+        fee: t.fee ? Number(t.fee) : undefined,
+        commission: t.commission ? Number(t.commission) : undefined,
+        newBalance: t.new_balance ? Number(t.new_balance) : undefined,
+        rawSms: t.raw_sms,
+        timestamp: t.transaction_date,
+        syncStatus: 1,
+      })));
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadTx();
     const interval = setInterval(loadTx, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  async function loadTx() {
-    try {
-      const stored = await getTransactions();
-      setTransactions(stored.map((t) => ({
-        id: t.id,
-        type: t.type,
-        operator: t.operator,
-        amount: t.amount,
-        commission: t.commission,
-        volume: t.volume,
-        volumeUnit: t.volumeUnit,
-        timestamp: t.timestamp,
-        rawSms: t.rawSms,
-      })));
-    } catch {}
-  }
+  }, [loadTx]);
 
   const filteredTransactions =
     activeFilter === 'ALL'
@@ -125,6 +123,12 @@ const HistoryScreen: React.FC = () => {
     <View style={styles.container}>
       <AppHeader title="Historique" subtitle={`${filteredTransactions.length} transactions`} />
 
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+      <>
       <ScrollView horizontal style={styles.filterRow} showsHorizontalScrollIndicator={false}>
         {FILTERS.map((f) => (
           <TouchableOpacity
@@ -145,7 +149,7 @@ const HistoryScreen: React.FC = () => {
             <Ionicons name="document-text-outline" size={48} color={colors.textSecondary} />
             <Text style={styles.emptyTitle}>Aucune transaction</Text>
             <Text style={styles.emptySubtitle}>
-              Les transactions apparaîtront ici automatiquement après réception des SMS.
+              Les transactions des téléphones surveillés apparaîtront ici.
             </Text>
           </View>
         ) : (
@@ -154,6 +158,8 @@ const HistoryScreen: React.FC = () => {
           ))
         )}
       </ScrollView>
+      </>
+      )}
 
       <Modal
         visible={!!selectedTx}
@@ -210,6 +216,11 @@ const HistoryScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

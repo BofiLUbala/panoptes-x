@@ -1,12 +1,11 @@
 import logging
-
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 
-from .models import Device, WatchRelation, ForwardedSms
+from .models import Device, WatchRelation, ForwardedSms, DeviceHeartbeat
 from .permissions import HasDeviceSecret
 from .serializers import (
     DeviceRegisterSerializer,
@@ -17,6 +16,8 @@ from .serializers import (
     ForwardSmsSerializer,
     WatchRelationSerializer,
     ForwardedSmsSerializer,
+    HeartbeatSerializer,
+    DeviceHeartbeatSerializer,
 )
 from .utils import (
     normalize_phone,
@@ -29,14 +30,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_watcher_device(request):
-    """Resolve the calling device from X-Device-Secret header first,
-    then fall back to any device owned by the authenticated user."""
     secret = get_device_secret_from_request(request)
     if secret:
         device = Device.objects.filter(device_secret=secret).first()
         if device:
             return device
-    # Fall back to user-owned device only when request.user is authenticated
     if hasattr(request, 'user') and request.user and request.user.is_authenticated:
         return Device.objects.filter(user=request.user).first()
     return None
@@ -55,18 +53,69 @@ class RegisterDeviceView(APIView):
 
         device, created = Device.objects.get_or_create(
             phone_number=phone,
-            defaults={'user': request.user, 'fcm_token': fcm_token},
+            defaults={
+                'user': request.user,
+                'fcm_token': fcm_token,
+                'device_name': serializer.validated_data.get('device_name', ''),
+                'device_model': serializer.validated_data.get('device_model', ''),
+                'os_version': serializer.validated_data.get('os_version', ''),
+                'app_version': serializer.validated_data.get('app_version', ''),
+                'fingerprint': serializer.validated_data.get('fingerprint', ''),
+            },
         )
         if not created:
             device.user = request.user
             if fcm_token:
                 device.fcm_token = fcm_token
-            device.save(update_fields=['user', 'fcm_token', 'updated_at'])
+            device.device_name = serializer.validated_data.get('device_name', device.device_name)
+            device.device_model = serializer.validated_data.get('device_model', device.device_model)
+            device.os_version = serializer.validated_data.get('os_version', device.os_version)
+            device.app_version = serializer.validated_data.get('app_version', device.app_version)
+            device.fingerprint = serializer.validated_data.get('fingerprint', device.fingerprint)
+            device.save(update_fields=[
+                'user', 'fcm_token', 'device_name', 'device_model',
+                'os_version', 'app_version', 'fingerprint', 'updated_at',
+            ])
+
+        from audit.utils import log_audit
+        log_audit(request.user, 'device_action', 'device', device.id, 'Device registered', request=request)
 
         return Response(
             DeviceSerializer(device).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class HeartbeatView(APIView):
+    permission_classes = [HasDeviceSecret]
+
+    def post(self, request):
+        device = request.device
+        if device.is_blocked:
+            return Response(
+                {'error_code': 'DEVICE_BLOCKED', 'message': 'Cet appareil est bloque.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = HeartbeatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=False)
+
+        device.last_heartbeat_at = timezone.now()
+        device.save(update_fields=['last_heartbeat_at', 'updated_at'])
+
+        DeviceHeartbeat.objects.create(
+            device=device,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            battery_level=request.data.get('battery_level'),
+            network_type=request.data.get('network_type', ''),
+            signal_strength=request.data.get('signal_strength'),
+        )
+
+        return Response({
+            'status': 'ok',
+            'server_time': timezone.now().isoformat(),
+            'heartbeat_interval': device.heartbeat_interval,
+        })
 
 
 class AuthorizeWatcherView(APIView):
@@ -80,14 +129,14 @@ class AuthorizeWatcherView(APIView):
         watcher = _get_watcher_device(request)
         if not watcher:
             return Response(
-                {'error_code': 'NO_DEVICE', 'message': 'Enregistrez d\'abord cet appareil.'},
+                {'error_code': 'NO_DEVICE', 'message': "Enregistrez d'abord cet appareil."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         target_phone = normalize_phone(serializer.validated_data['target_phone'])
         if target_phone == watcher.phone_number:
             return Response(
-                {'error_code': 'SELF_WATCH', 'message': 'Impossible de surveiller votre propre numéro.'},
+                {'error_code': 'SELF_WATCH', 'message': 'Impossible de surveiller votre propre numero.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -96,7 +145,7 @@ class AuthorizeWatcherView(APIView):
             return Response(
                 {
                     'error_code': 'TARGET_NOT_FOUND',
-                    'message': 'L\'appareil cible n\'est pas encore enregistré sur PANOPTES-X.',
+                    'message': "L'appareil cible n'est pas encore enregistre sur PANOPTES-X.",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
@@ -108,7 +157,7 @@ class AuthorizeWatcherView(APIView):
         )
         if not created and relation.status == 'active':
             return Response(
-                {'error_code': 'ALREADY_ACTIVE', 'message': 'Surveillance déjà active.'},
+                {'error_code': 'ALREADY_ACTIVE', 'message': 'Surveillance deja active.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if not created and relation.status == 'pending':
@@ -133,6 +182,9 @@ class AuthorizeWatcherView(APIView):
                 'watcher_phone': watcher.phone_number,
             },
         )
+
+        from audit.utils import log_audit
+        log_audit(request.user, 'device_action', 'watch_relation', relation.id, 'Watch request created', request=request)
 
         return Response(WatchRelationSerializer(relation).data, status=status.HTTP_201_CREATED)
 
@@ -159,7 +211,7 @@ class ConfirmWatcherView(APIView):
 
         if relation.status != 'pending':
             return Response(
-                {'error_code': 'INVALID_STATE', 'message': f'Demande déjà traitée ({relation.status}).'},
+                {'error_code': 'INVALID_STATE', 'message': f'Demande deja traitee ({relation.status}).'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -169,8 +221,8 @@ class ConfirmWatcherView(APIView):
             relation.save(update_fields=['status', 'confirmed_at'])
             send_fcm_notification(
                 relation.watcher.fcm_token,
-                'Surveillance activée',
-                f'{target.phone_number} a accepté la surveillance.',
+                'Surveillance activee',
+                f'{target.phone_number} a accepte la surveillance.',
                 {'type': 'watch_active', 'request_id': str(relation.id)},
             )
         else:
@@ -178,8 +230,8 @@ class ConfirmWatcherView(APIView):
             relation.save(update_fields=['status'])
             send_fcm_notification(
                 relation.watcher.fcm_token,
-                'Surveillance refusée',
-                f'{target.phone_number} a refusé la surveillance.',
+                'Surveillance refusee',
+                f'{target.phone_number} a refuse la surveillance.',
                 {'type': 'watch_rejected', 'request_id': str(relation.id)},
             )
 
@@ -235,13 +287,12 @@ class RevokeWatcherView(APIView):
         other = relation.watcher if relation.target_id == device.id else relation.target
         send_fcm_notification(
             other.fcm_token,
-            'Surveillance révoquée',
-            f'La surveillance entre {relation.watcher.phone_number} et {relation.target.phone_number} a été révoquée.',
+            'Surveillance revoquee',
+            f'La surveillance entre {relation.watcher.phone_number} et {relation.target.phone_number} a ete revoquee.',
             {'type': 'watch_revoked', 'request_id': str(relation.id)},
         )
 
         return Response(WatchRelationSerializer(relation).data)
-
 
 
 class WatchRelationsView(APIView):
@@ -255,7 +306,7 @@ class WatchRelationsView(APIView):
                 device = Device.objects.filter(device_secret=secret).first()
         if not device:
             return Response(
-                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistré.'},
+                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistre.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -283,6 +334,12 @@ class ForwardSmsView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         target = request.device
+        if target.is_blocked:
+            return Response(
+                {'error_code': 'DEVICE_BLOCKED', 'message': 'Cet appareil est bloque.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         logger.info('forward-sms: target=%s sender=%s', target.phone_number, serializer.validated_data.get('sender'))
 
         has_active = WatchRelation.objects.filter(
@@ -327,14 +384,9 @@ class ForwardSmsView(APIView):
 
 
 class GetSmsView(APIView):
-    # Accept both JWT (IsAuthenticated) and device-secret (HasDeviceSecret).
-    # AllowAny is used here and device resolution is done manually so that
-    # Device A can retrieve SMS using either its JWT bearer token or its
-    # X-Device-Secret header (useful for background polling).
     permission_classes = []
 
     def get(self, request):
-        # Try to resolve watcher from device-secret header first, then JWT
         watcher = None
         secret = get_device_secret_from_request(request)
         if secret:
@@ -344,7 +396,7 @@ class GetSmsView(APIView):
 
         if not watcher:
             return Response(
-                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistré ou authentification requise.'},
+                {'error_code': 'NO_DEVICE', 'message': 'Appareil non enregistre ou authentification requise.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -367,7 +419,7 @@ class GetSmsView(APIView):
         ).exists():
             logger.warning('get-sms: watcher=%s not authorized for target=%s', watcher.phone_number, target_phone)
             return Response(
-                {'error_code': 'NOT_AUTHORIZED', 'message': 'Surveillance non active pour ce numéro.'},
+                {'error_code': 'NOT_AUTHORIZED', 'message': 'Surveillance non active pour ce numero.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -389,3 +441,47 @@ class UserDevicesView(APIView):
     def get(self, request):
         devices = Device.objects.filter(user=request.user)
         return Response(DeviceSerializer(devices, many=True).data)
+
+
+class BlockDeviceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, device_id):
+        device = Device.objects.filter(id=device_id, user=request.user).first()
+        if not device:
+            return Response(
+                {'error_code': 'NOT_FOUND', 'message': 'Appareil introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        device.is_blocked = True
+        device.blocked_at = timezone.now()
+        device.block_reason = request.data.get('reason', 'Blocked by user')
+        device.save(update_fields=['is_blocked', 'blocked_at', 'block_reason', 'updated_at'])
+
+        from audit.utils import log_audit
+        log_audit(request.user, 'device_action', 'device', device.id, 'Device blocked', request=request)
+
+        return Response(DeviceSerializer(device).data)
+
+
+class UnblockDeviceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, device_id):
+        device = Device.objects.filter(id=device_id, user=request.user).first()
+        if not device:
+            return Response(
+                {'error_code': 'NOT_FOUND', 'message': 'Appareil introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        device.is_blocked = False
+        device.blocked_at = None
+        device.block_reason = ''
+        device.save(update_fields=['is_blocked', 'blocked_at', 'block_reason', 'updated_at'])
+
+        from audit.utils import log_audit
+        log_audit(request.user, 'device_action', 'device', device.id, 'Device unblocked', request=request)
+
+        return Response(DeviceSerializer(device).data)

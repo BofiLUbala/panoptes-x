@@ -1,4 +1,4 @@
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
+import { NativeModules, NativeEventEmitter, Platform, PermissionsAndroid } from 'react-native';
 import { parseSms } from './smsParser';
 import { saveTransaction, saveFailedParse } from './storage';
 import { saveGeneralMessage } from './generalMessages';
@@ -19,9 +19,18 @@ let emitter: NativeEventEmitter | null = null;
 let subscription: any = null;
 let isRunning = false;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let seenSmsIds: Set<string> = new Set();
 const handlers: Set<SmsHandler> = new Set();
 
 function processSms(sms: SmsEvent) {
+  const dedupKey = `${sms.sender}:${sms.message}:${sms.timestamp}`;
+  if (seenSmsIds.has(dedupKey)) return;
+  seenSmsIds.add(dedupKey);
+  if (seenSmsIds.size > 1000) {
+    const arr = Array.from(seenSmsIds);
+    seenSmsIds = new Set(arr.slice(arr.length - 500));
+  }
+
   const operator = detectOperatorFromSender(sms.sender);
   saveGeneralMessage({
     id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -75,10 +84,44 @@ async function pollPendingSms() {
   }
 }
 
+async function pollSmsInbox() {
+  if (!SmsModule) return;
+  try {
+    const recent = await SmsModule.queryRecentSms();
+    if (recent && Array.isArray(recent)) {
+      for (const sms of recent) {
+        processSms(sms as SmsEvent);
+      }
+    }
+  } catch (e) {
+    /* silent */
+  }
+}
+
+async function requestSmsPermissions(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+      PermissionsAndroid.PERMISSIONS.READ_SMS,
+    ]);
+    return (
+      granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED ||
+      granted[PermissionsAndroid.PERMISSIONS.READ_SMS] === PermissionsAndroid.RESULTS.GRANTED
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const smsForwarder = {
   async start(): Promise<void> {
     if (isRunning) return;
     isRunning = true;
+
+    if (Platform.OS === 'android') {
+      await requestSmsPermissions();
+    }
 
     if (Platform.OS === 'android' && SmsModule) {
       try {
@@ -93,11 +136,15 @@ export const smsForwarder = {
           }
         }
       } catch {
-        pollingInterval = setInterval(pollPendingSms, 5000);
+        /* silent */
       }
-    } else {
-      pollingInterval = setInterval(pollPendingSms, 5000);
     }
+
+    pollSmsInbox();
+    pollingInterval = setInterval(() => {
+      pollPendingSms();
+      pollSmsInbox();
+    }, 5000);
   },
 
   stop(): void {

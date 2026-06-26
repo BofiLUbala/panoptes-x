@@ -11,6 +11,8 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import { api } from './src/services/api';
 import { simStore } from './src/services/simStore';
+import { syncService } from './src/services/syncService';
+import { wsManager } from './src/services/websocket';
 import { useMonitoringLifecycle } from './src/hooks/useMonitoring';
 
 type AppState = 'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main';
@@ -26,6 +28,13 @@ const AppContent: React.FC = () => {
     const unsubscribe = api.onLogout(() => {
       setAppState('auth');
       setUserProfile(undefined);
+      wsManager.setAuthenticated(false);
+    });
+    api.restoreToken().then((hasToken) => {
+      if (hasToken) {
+        setAppState('main');
+        wsManager.setAuthenticated(true);
+      }
     });
     return unsubscribe;
   }, []);
@@ -34,10 +43,19 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (appState === 'main') {
+      syncService.start();
+      wsManager.setAuthenticated(true);
       api.getProfile()
         .then((profile) => setUserProfile(profile))
         .catch(() => {});
+    } else {
+      syncService.stop();
+      wsManager.setAuthenticated(false);
     }
+    return () => {
+      syncService.stop();
+      wsManager.setAuthenticated(false);
+    };
   }, [appState]);
 
   const renderScreen = () => {
@@ -60,13 +78,19 @@ const AppContent: React.FC = () => {
           <OTPVerificationScreen
             whatsappNumber={whatsappNumber}
             onBack={() => setAppState('register')}
-            onVerified={() => setAppState('main')}
+            onVerified={() => {
+              setAppState('main');
+              wsManager.setAuthenticated(true);
+            }}
           />
         );
       case 'auth':
         return (
           <AuthScreen
-            onLogin={() => setAppState('main')}
+            onLogin={() => {
+              setAppState('main');
+              wsManager.setAuthenticated(true);
+            }}
             onRegister={() => setAppState('register')}
           />
         );

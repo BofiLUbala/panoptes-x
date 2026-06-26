@@ -1,8 +1,9 @@
 import logging
 import re
+import requests
 from datetime import timedelta
 from typing import Optional
-
+from django.conf import settings
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -43,10 +44,33 @@ def cleanup_old_sms():
 def send_fcm_notification(fcm_token: str, title: str, body: str, data: Optional[dict] = None):
     if not fcm_token:
         return
-    logger.info(
-        'FCM notification (stub): token=%s… title=%s body=%s data=%s',
-        fcm_token[:12],
-        title,
-        body,
-        data,
-    )
+    if not settings.FCM_ENABLED or not settings.FCM_SERVER_KEY:
+        logger.info('FCM stub: token=%s… title=%s body=%s', fcm_token[:12], title, body)
+        return
+
+    headers = {
+        'Authorization': f'key={settings.FCM_SERVER_KEY}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'to': fcm_token,
+        'notification': {
+            'title': title,
+            'body': body,
+            'sound': 'default',
+        },
+        'data': data or {},
+    }
+    try:
+        resp = requests.post(
+            'https://fcm.googleapis.com/fcm/send',
+            headers=headers,
+            json=payload,
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            logger.info('FCM sent to %s: %s', fcm_token[:12], title)
+        else:
+            logger.warning('FCM failed for %s: %s', fcm_token[:12], resp.text)
+    except requests.RequestException as e:
+        logger.error('FCM error: %s', e)
