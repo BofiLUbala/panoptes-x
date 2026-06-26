@@ -250,6 +250,30 @@ class AgentTrackApi {
     return response.data;
   }
 
+  async blockDevice(deviceId: number): Promise<any> {
+    if (!this.token) throw new Error('Not authenticated');
+    const response: AxiosResponse = await this.client.post(`/monitoring/devices/${deviceId}/block/`);
+    return response.data;
+  }
+
+  async unblockDevice(deviceId: number): Promise<any> {
+    if (!this.token) throw new Error('Not authenticated');
+    const response: AxiosResponse = await this.client.post(`/monitoring/devices/${deviceId}/unblock/`);
+    return response.data;
+  }
+
+  async getReconciliationDetail(runId: number): Promise<any> {
+    if (!this.token) throw new Error('Not authenticated');
+    const response: AxiosResponse = await this.client.get(`/reconciliation/runs/${runId}/`);
+    return response.data;
+  }
+
+  async getAuditLogDetail(logId: number): Promise<any> {
+    if (!this.token) throw new Error('Not authenticated');
+    const response: AxiosResponse = await this.client.get(`/audit/logs/${logId}/`);
+    return response.data;
+  }
+
   async getWatchRelations(): Promise<WatchRelation[]> {
     if (!this.token) throw new Error('Not authenticated');
     const response: AxiosResponse = await this.client.get('/monitoring/watch-relations/', {

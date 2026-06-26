@@ -24,6 +24,11 @@ import SettingsScreen from '../screens/SettingsScreen';
 import GetHistoryScreen from '../screens/GetHistoryScreen';
 import MonitoringScreen from '../screens/MonitoringScreen';
 import SIMScreen from '../screens/SIMScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
+import LedgerScreen from '../screens/LedgerScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import ReconciliationScreen from '../screens/ReconciliationScreen';
+import AuditLogScreen from '../screens/AuditLogScreen';
 import NavigationDrawer from '../components/NavigationDrawer';
 import CountryCodePicker from '../components/CountryCodePicker';
 import { simStore } from '../services/simStore';
@@ -39,6 +44,11 @@ const TAB_ICONS: Record<string, { focused: keyof typeof Ionicons.glyphMap; defau
   Historique: { focused: 'time',            default: 'time-outline' },
   Subscription:{ focused: 'card',           default: 'card-outline' },
   Settings:   { focused: 'person',          default: 'person-outline' },
+  Analytics: { focused: 'stats-chart',      default: 'stats-chart-outline' },
+  Ledger:    { focused: 'wallet',            default: 'wallet-outline' },
+  Notifications:{ focused: 'notifications',  default: 'notifications-outline' },
+  Reconciliation:{ focused: 'git-compare',   default: 'git-compare-outline' },
+  AuditLog:  { focused: 'document-text',     default: 'document-text-outline' },
   // GetHistory is a hidden tab — must still be safe
   GetHistory: { focused: 'document-text',   default: 'document-text-outline' },
 };
@@ -167,13 +177,11 @@ const AppNavigator: React.FC = () => {
         navigation.navigate('GetHistory');
       },
     },
-    {
-      icon: 'document-text-outline' as const,
-      label: 'Résumé',
-      onPress: () => {
-        // Summary feature
-      },
-    },
+    { icon: 'stats-chart' as const, label: 'Analyses', onPress: () => navigation.navigate('Analytics') },
+    { icon: 'wallet' as const, label: 'Grand livre', onPress: () => navigation.navigate('Ledger') },
+    { icon: 'notifications' as const, label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
+    { icon: 'git-compare' as const, label: 'Réconciliation', onPress: () => navigation.navigate('Reconciliation') },
+    { icon: 'document-text' as const, label: "Journal d'audit", onPress: () => navigation.navigate('AuditLog') },
   ];
 
   const renderStepContent = () => {
@@ -408,6 +416,11 @@ const AppNavigator: React.FC = () => {
         <Tab.Screen name="Historique"   component={HistoryScreen}     options={{ tabBarLabel: 'Historique' }} />
         <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ tabBarLabel: 'Abonnement' }} />
         <Tab.Screen name="Settings"     component={SettingsScreen}    options={{ tabBarLabel: 'Compte' }} />
+        <Tab.Screen name="Analytics"    component={AnalyticsScreen}   options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
+        <Tab.Screen name="Ledger"       component={LedgerScreen}      options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
+        <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
+        <Tab.Screen name="Reconciliation" component={ReconciliationScreen} options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
+        <Tab.Screen name="AuditLog"     component={AuditLogScreen}    options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
         <Tab.Screen name="GetHistory"   component={GetHistoryScreen}  options={{ tabBarItemStyle: { display: 'none' }, tabBarLabel: '' }} />
       </Tab.Navigator>
 
