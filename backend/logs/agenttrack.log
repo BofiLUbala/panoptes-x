@@ -6036,3 +6036,20 @@ WARNING 2026-06-26 15:17:26,886 log Not Found: /ws/notifications/
 WARNING 2026-06-26 15:17:26,887 basehttp "GET /ws/notifications/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgyNDg0MDA0LCJpYXQiOjE3ODI0ODMxMDQsImp0aSI6Ijg1OWFmMzgyMTRmNzQ1M2Q4YWQ5MmQwNDRjYjgwOTFmIiwidXNlcl9pZCI6IjIxIn0.b9ittVN9n2Jlw3X4GvKGfXocVZ1NJl6PmI-6MWKKDQc HTTP/1.1" 404 3315
 WARNING 2026-06-26 15:17:27,139 log Not Found: /ws/sms-feed/
 WARNING 2026-06-26 15:17:27,143 basehttp "GET /ws/sms-feed/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgyNDg0MDA0LCJpYXQiOjE3ODI0ODMxMDQsImp0aSI6Ijg1OWFmMzgyMTRmNzQ1M2Q4YWQ5MmQwNDRjYjgwOTFmIiwidXNlcl9pZCI6IjIxIn0.b9ittVN9n2Jlw3X4GvKGfXocVZ1NJl6PmI-6MWKKDQc HTTP/1.1" 404 3300
+INFO 2026-06-26 15:26:57,308 autoreload Watching for file changes with StatReloader
+INFO 2026-06-27 14:45:33,689 autoreload Watching for file changes with StatReloader
+WARNING 2026-06-27 15:11:27,711 log Not Found: /api/
+WARNING 2026-06-27 15:11:27,734 basehttp "GET /api/ HTTP/1.1" 404 9585
+INFO 2026-06-27 15:11:28,576 basehttp - Broken pipe from ('192.168.11.105', 58224)
+WARNING 2026-06-27 15:11:29,344 log Not Found: /api/
+WARNING 2026-06-27 15:11:29,345 basehttp "GET /api/ HTTP/1.1" 404 9580
+INFO 2026-06-27 15:11:29,925 basehttp - Broken pipe from ('127.0.0.1', 58228)
+WARNING 2026-06-27 15:30:09,502 log Unauthorized: /api/auth/login/
+WARNING 2026-06-27 15:30:09,508 basehttp "POST /api/auth/login/ HTTP/1.1" 401 70
+INFO 2026-06-27 15:30:10,023 basehttp - Broken pipe from ('192.168.11.105', 65053)
+WARNING 2026-06-27 15:30:10,582 log Unauthorized: /api/subscriptions/
+WARNING 2026-06-27 15:30:10,582 basehttp "GET /api/subscriptions/ HTTP/1.1" 401 263
+INFO 2026-06-27 15:30:11,140 basehttp - Broken pipe from ('192.168.11.105', 65051)
+WARNING 2026-06-27 15:33:35,914 log Unauthorized: /api/auth/login/
+WARNING 2026-06-27 15:33:35,916 basehttp "POST /api/auth/login/ HTTP/1.1" 401 70
+INFO 2026-06-27 15:33:36,268 basehttp - Broken pipe from ('192.168.11.105', 65280)

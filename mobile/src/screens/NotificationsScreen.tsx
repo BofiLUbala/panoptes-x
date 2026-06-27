@@ -24,7 +24,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const NotificationsScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selected, setSelected] = useState<Notification | null>(null);
@@ -36,13 +36,7 @@ const NotificationsScreen: React.FC = () => {
     } catch { }
   }, []);
 
-  const initialLoad = useCallback(async () => {
-    setLoading(true);
-    await load();
-    setLoading(false);
-  }, [load]);
-
-  useEffect(() => { initialLoad(); }, [initialLoad]);
+  useEffect(() => { load(); }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

@@ -1,0 +1,6 @@
+node_modules
+dist-test
+export_test
+.git
+*.md
+crash_logs.txt

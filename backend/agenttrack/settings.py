@@ -90,11 +90,11 @@ if DB_ENGINE == 'django.db.backends.postgresql':
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'BACKEND': os.getenv('CHANNEL_LAYER_BACKEND', 'channels.layers.InMemoryChannelLayer'),
         'CONFIG': {
             "hosts": [os.getenv('REDIS_URL', 'redis://localhost:6379/0')],
             "symmetric_encryption_keys": [SECRET_KEY],
-        },
+        } if os.getenv('CHANNEL_LAYER_BACKEND') == 'channels_redis.core.RedisChannelLayer' else {},
     },
 }
 

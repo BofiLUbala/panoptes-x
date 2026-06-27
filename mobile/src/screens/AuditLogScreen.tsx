@@ -26,7 +26,7 @@ const ACTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 const AuditLogScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -38,13 +38,7 @@ const AuditLogScreen: React.FC = () => {
     } catch { }
   }, []);
 
-  const initialLoad = useCallback(async () => {
-    setLoading(true);
-    await load();
-    setLoading(false);
-  }, [load]);
-
-  useEffect(() => { initialLoad(); }, [initialLoad]);
+  useEffect(() => { load(); }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

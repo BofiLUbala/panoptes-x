@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { api } from '../services/api';
+import { dataCache } from '../services/dataCache';
 import { Transaction, TransactionType, Operator } from '../types';
 import AppHeader from '../components/AppHeader';
 
@@ -79,40 +80,9 @@ const TransactionItem: React.FC<{
 
 const HistoryScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(dataCache.transactions);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadTx = useCallback(async () => {
-    try {
-      const data = await api.getTransactionsFromServer();
-      setTransactions(data.map((t: any) => ({
-        id: String(t.id),
-        operator: t.operator,
-        type: t.type,
-        amount: t.amount ? Number(t.amount) : undefined,
-        currency: t.currency,
-        volume: t.volume ? Number(t.volume) : undefined,
-        volumeUnit: t.volume_unit,
-        fee: t.fee ? Number(t.fee) : undefined,
-        commission: t.commission ? Number(t.commission) : undefined,
-        newBalance: t.new_balance ? Number(t.new_balance) : undefined,
-        rawSms: t.raw_sms,
-        timestamp: t.transaction_date,
-        syncStatus: 1,
-      })));
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTx();
-    const interval = setInterval(loadTx, 5000);
-    return () => clearInterval(interval);
-  }, [loadTx]);
+  const [loading, setLoading] = useState(false);
 
   const filteredTransactions =
     activeFilter === 'ALL'

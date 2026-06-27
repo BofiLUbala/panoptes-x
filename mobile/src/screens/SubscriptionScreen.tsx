@@ -16,6 +16,7 @@ import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import AppHeader from '../components/AppHeader';
 import { api } from '../services/api';
 import { simStore } from '../services/simStore';
+import { dataCache } from '../services/dataCache';
 import { Service, Subscription, PaymentItemRequest } from '../types';
 
 const NETWORKS = [
@@ -38,10 +39,10 @@ interface BackendDevice {
 }
 
 const SubscriptionScreen: React.FC = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [devices, setDevices] = useState<BackendDevice[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<Service[]>(dataCache.services);
+  const [devices, setDevices] = useState<BackendDevice[]>(dataCache.devices as BackendDevice[]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(dataCache.subscriptions);
+  const [loading, setLoading] = useState(false);
 
   const [showPayment, setShowPayment] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -56,44 +57,28 @@ const SubscriptionScreen: React.FC = () => {
 
   const scrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    const devs = dataCache.devices as BackendDevice[];
+    const localSims = simStore.getSims();
+    const devPhoneNumbers = new Set(devs.map(d => d.phone_number));
+    const unregisteredSims = localSims.filter(s => !devPhoneNumbers.has(s.phoneNumber));
+    if (unregisteredSims.length > 0) {
+      Promise.all(unregisteredSims.map(sim =>
+        api.registerDevice(sim.phoneNumber).catch(() => null)
+      )).then(results => {
+        const newDevices = results.filter(Boolean) as BackendDevice[];
+        if (newDevices.length > 0) {
+          setDevices([...devs, ...newDevices]);
+        }
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (paymentResult) {
       setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 100);
     }
   }, [paymentResult]);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [svcs, devs, subs] = await Promise.all([
-        api.getServices(),
-        api.getDevices(),
-        api.getSubscriptions().catch(() => []),
-      ]);
-      setServices(svcs);
-
-      const localSims = simStore.getSims();
-      const devPhoneNumbers = new Set(devs.map(d => d.phone_number));
-      const unregisteredSims = localSims.filter(s => !devPhoneNumbers.has(s.phoneNumber));
-      if (unregisteredSims.length > 0) {
-        const registered = [...devs];
-        for (const sim of unregisteredSims) {
-          try { registered.push(await api.registerDevice(sim.phoneNumber)); } catch { }
-        }
-        setDevices(registered);
-      } else {
-        setDevices(devs);
-      }
-
-      setSubscriptions(subs);
-    } catch (e) {
-      console.error('Failed to load subscription data:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const activeSubs = subscriptions.filter(s => s.status === 'active');
   const expiredSubs = subscriptions.filter(s => s.status !== 'active');
@@ -135,7 +120,10 @@ const SubscriptionScreen: React.FC = () => {
       setShowPayment(false);
       setSelectedServiceId(null);
       setSelectedDeviceId(null);
-      loadData();
+      dataCache.refreshAll();
+      setServices([...dataCache.services]);
+      setSubscriptions([...dataCache.subscriptions]);
+      setDevices(dataCache.devices as BackendDevice[]);
     } catch (err: any) {
       Alert.alert('Erreur', err?.response?.data?.message || err?.message || 'Erreur lors de la confirmation.');
     } finally {

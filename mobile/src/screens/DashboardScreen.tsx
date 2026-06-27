@@ -17,6 +17,7 @@ import DataCard from '../components/DataCard';
 import ActionDeck from '../components/ActionDeck';
 import { api } from '../services/api';
 import { simStore } from '../services/simStore';
+import { dataCache } from '../services/dataCache';
 import { Subscription } from '../types';
 
 type SystemStatus = 'active' | 'warning' | 'inactive';
@@ -42,16 +43,14 @@ const STATUS_CONFIG: Record<SystemStatus, { color: string; label: string }> = {
 
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [simCount, setSimCount] = useState(0);
-  const [deviceCount, setDeviceCount] = useState(0);
-  const [txCount, setTxCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [simCount, setSimCount] = useState(simStore.getSims().length);
+  const [deviceCount, setDeviceCount] = useState(dataCache.devices.length);
+  const [txCount, setTxCount] = useState(dataCache.transactions.length);
   const [msgCount, setMsgCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [mmTxCount, setMmTxCount] = useState(0);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(dataCache.subscriptions);
+  const [mmTxCount, setMmTxCount] = useState(dataCache.transactions.filter(t => t.type === 'MOBILE_MONEY').length);
 
   const activeSubs = subscriptions.filter(s => s.status === 'active');
   const expiringSubs = activeSubs.filter(s => s.days_remaining < 7);
@@ -89,54 +88,35 @@ const DashboardScreen: React.FC = () => {
     return items.length > 0 ? items : [{ icon: 'time', label: 'Aucune activité récente', value: '', color: colors.textLight }];
   }, [msgCount, txCount, simCount, activeSubs]);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [subs, devices, serverTx, relations] = await Promise.all([
-        api.getSubscriptions().catch(() => [] as Subscription[]),
-        api.getDevices().catch(() => []),
-        api.getTransactionsFromServer().catch(() => []),
-        api.getWatchRelations().catch(() => []),
-      ]);
+  useEffect(() => {
+    countSms();
+    const unsub = simStore.subscribe(() => setSimCount(simStore.getSims().length));
+    return unsub;
+  }, []);
 
-      const allSms: any[] = [];
-      const activeTargets = relations.filter(r => r.status === 'active');
+  async function countSms() {
+    try {
+      const rels = dataCache.watchRelations;
+      const activeTargets = rels.filter(r => r.status === 'active');
+      let total = 0;
       for (const rel of activeTargets) {
         try {
           const data = await api.getForwardedSms(rel.target_phone);
-          allSms.push(...data.results);
-        } catch { /* skip */ }
+          total += data.results.length;
+        } catch {}
       }
-
-      setSubscriptions(subs);
-      setDeviceCount(devices.length);
-      setTxCount(serverTx.length);
-      setPendingCount(0);
-      setMsgCount(allSms.length);
-      setMmTxCount(serverTx.filter(t => t.type === 'MOBILE_MONEY').length);
-    } catch (e) {
-      console.error('Dashboard load error:', e);
-    }
-  }, []);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    simStore.loadSims().then(() => setSimCount(simStore.getSims().length));
-    await loadData();
-    setLoading(false);
-  }, [loadData]);
+      setMsgCount(total);
+    } catch {}
+  }
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+    dataCache.refreshAll();
     setSimCount(simStore.getSims().length);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
-
-  useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    const unsub = simStore.subscribe(() => setSimCount(simStore.getSims().length));
-    return unsub;
+    setSubscriptions([...dataCache.subscriptions]);
+    setDeviceCount(dataCache.devices.length);
+    setTxCount(dataCache.transactions.length);
+    setMmTxCount(dataCache.transactions.filter(t => t.type === 'MOBILE_MONEY').length);
+    countSms();
   }, []);
 
   if (loading) {
@@ -171,7 +151,7 @@ const DashboardScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={false}
       >

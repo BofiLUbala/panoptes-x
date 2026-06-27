@@ -13,7 +13,7 @@ const { width } = Dimensions.get('window');
 const BAR_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a78bfa', '#06b6d4'];
 
 const AnalyticsScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
 
@@ -39,13 +39,7 @@ const AnalyticsScreen: React.FC = () => {
     } catch { }
   }, [period]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    await loadAll();
-    setLoading(false);
-  }, [loadAll]);
-
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

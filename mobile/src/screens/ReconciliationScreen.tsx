@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: keyof 
 };
 
 const ReconciliationScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [runs, setRuns] = useState<ReconciliationRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<ReconciliationRun | null>(null);
@@ -40,13 +40,7 @@ const ReconciliationScreen: React.FC = () => {
     } catch { }
   }, []);
 
-  const initialLoad = useCallback(async () => {
-    setLoading(true);
-    await load();
-    setLoading(false);
-  }, [load]);
-
-  useEffect(() => { initialLoad(); }, [initialLoad]);
+  useEffect(() => { load(); }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

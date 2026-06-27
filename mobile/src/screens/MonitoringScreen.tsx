@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { api } from '../services/api';
+import { dataCache } from '../services/dataCache';
 import { getGeneralMessages } from '../services/generalMessages';
 import { GeneralMessage, ForwardedSms } from '../types';
 import AppHeader from '../components/AppHeader';
@@ -37,63 +37,53 @@ function formatTime(ts: string): string {
 const MonitoringScreen: React.FC = () => {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [selectedMsg, setSelectedMsg] = useState<DisplayMessage | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const localMsgs = await getGeneralMessages();
-      const all: DisplayMessage[] = localMsgs.map(m => ({
-        id: m.id,
-        sender: m.sender,
-        message: m.message,
-        timestamp: m.timestamp,
-        source: 'local' as const,
-      }));
-
-      try {
-        const relations = await api.getWatchRelations();
-        const activeTargets = relations.filter(r => r.status === 'active');
-        for (const rel of activeTargets) {
-          const data = await api.getForwardedSms(rel.target_phone);
-          for (const sms of data.results) {
-            all.push({
-              id: `svr-${sms.id}`,
-              sender: sms.sender,
-              message: sms.message,
-              timestamp: sms.received_at,
-              source: 'server' as const,
-              targetPhone: sms.target_phone,
-            });
-          }
-        }
-      } catch {
-        // serveur pas disponible, on garde juste les messages locaux
-      }
-
-      all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setMessages(all);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 5000);
-    return () => clearInterval(interval);
-  }, [load]);
+    loadLocalMessages();
+  }, []);
+
+  async function loadLocalMessages() {
+    const localMsgs = await getGeneralMessages();
+    const all: DisplayMessage[] = localMsgs.map(m => ({
+      id: m.id,
+      sender: m.sender,
+      message: m.message,
+      timestamp: m.timestamp,
+      source: 'local' as const,
+    }));
+    setMessages(all);
+    loadServerMessages(all);
+  }
+
+  async function loadServerMessages(existing: DisplayMessage[]) {
+    try {
+      const relations = dataCache.watchRelations.length > 0
+        ? dataCache.watchRelations
+        : await api.getWatchRelations();
+      const activeTargets = relations.filter(r => r.status === 'active');
+      for (const rel of activeTargets) {
+        const data = await api.getForwardedSms(rel.target_phone);
+        for (const sms of data.results) {
+          existing.push({
+            id: `svr-${sms.id}`,
+            sender: sms.sender,
+            message: sms.message,
+            timestamp: sms.received_at,
+            source: 'server' as const,
+            targetPhone: sms.target_phone,
+          });
+        }
+      }
+      existing.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setMessages([...existing]);
+    } catch {}
+  }
 
   return (
     <View style={styles.container}>
       <AppHeader title="Messages généraux" subtitle={`${messages.length} message(s)`} />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {messages.length === 0 ? (
           <View style={styles.emptyState}>
@@ -122,7 +112,6 @@ const MonitoringScreen: React.FC = () => {
           ))
         )}
       </ScrollView>
-      )}
 
       <Modal
         visible={!!selectedMsg}

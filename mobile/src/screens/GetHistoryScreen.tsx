@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
 import { simStore } from '../services/simStore';
 import { api } from '../services/api';
+import { dataCache } from '../services/dataCache';
 import { SimCard, SimService, Transaction, Operator, TransactionType, Subscription } from '../types';
 
 const SERVICE_ICONS: Record<SimService, keyof typeof Ionicons.glyphMap> = {
@@ -42,52 +43,16 @@ function getTypeLabel(type: TransactionType): string {
 }
 
 const GetHistoryScreen: React.FC = () => {
-  const [sims, setSims] = useState<SimCard[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [sims, setSims] = useState<SimCard[]>(simStore.getSims());
+  const [transactions, setTransactions] = useState<Transaction[]>(dataCache.transactions);
   const [selectedSim, setSelectedSim] = useState<SimCard | null>(null);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(dataCache.subscriptions);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
 
   useEffect(() => {
-    loadSimsAndTx();
-    loadSubscriptions();
-    const unsub = simStore.subscribe(loadSimsAndTx);
-    const interval = setInterval(loadSimsAndTx, 5000);
-    return () => {
-      unsub();
-      clearInterval(interval);
-    };
+    const unsub = simStore.subscribe(() => setSims(simStore.getSims()));
+    return unsub;
   }, []);
-
-  async function loadSimsAndTx() {
-    setSims(simStore.getSims());
-    try {
-      const serverTx = await api.getTransactionsFromServer();
-      setTransactions(serverTx.map((t: any) => ({
-        id: String(t.id),
-        operator: t.operator,
-        type: t.type,
-        amount: t.amount ? Number(t.amount) : undefined,
-        volume: t.volume ? Number(t.volume) : undefined,
-        volumeUnit: t.volume_unit,
-        commission: t.commission ? Number(t.commission) : undefined,
-        rawSms: t.raw_sms,
-        timestamp: t.transaction_date,
-        syncStatus: 1,
-      })));
-    } catch {}
-  }
-
-  async function loadSubscriptions() {
-    try {
-      const subs = await api.getSubscriptions();
-      setSubscriptions(subs);
-    } catch {
-      setSubscriptions([]);
-    } finally {
-      setSubscriptionsLoading(false);
-    }
-  }
 
   function hasActiveSubscription(phoneNumber: string): boolean {
     return subscriptions.some(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { api } from './src/services/api';
 import { simStore } from './src/services/simStore';
 import { syncService } from './src/services/syncService';
 import { wsManager } from './src/services/websocket';
+import { dataCache } from './src/services/dataCache';
 import { useMonitoringLifecycle } from './src/hooks/useMonitoring';
 
 type AppState = 'onboarding' | 'auth' | 'register' | 'otp-verify' | 'main';
@@ -22,6 +23,7 @@ const AppContent: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('onboarding');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [userProfile, setUserProfile] = useState<{ phone?: string; whatsapp_number?: string } | undefined>();
+  const profileFetched = useRef(false);
 
   useEffect(() => {
     simStore.loadSims();
@@ -29,25 +31,27 @@ const AppContent: React.FC = () => {
       setAppState('auth');
       setUserProfile(undefined);
       wsManager.setAuthenticated(false);
+      profileFetched.current = false;
     });
     api.restoreToken().then((hasToken) => {
       if (hasToken) {
         setAppState('main');
-        wsManager.setAuthenticated(true);
       }
     });
     return unsubscribe;
   }, []);
 
-  useMonitoringLifecycle(appState === 'main', userProfile);
-
   useEffect(() => {
     if (appState === 'main') {
       syncService.start();
       wsManager.setAuthenticated(true);
-      api.getProfile()
-        .then((profile) => setUserProfile(profile))
-        .catch(() => {});
+      dataCache.preloadAll();
+      if (!profileFetched.current) {
+        profileFetched.current = true;
+        api.getProfile()
+          .then((profile) => setUserProfile(profile))
+          .catch(() => {});
+      }
     } else {
       syncService.stop();
       wsManager.setAuthenticated(false);
@@ -57,6 +61,8 @@ const AppContent: React.FC = () => {
       wsManager.setAuthenticated(false);
     };
   }, [appState]);
+
+  useMonitoringLifecycle(appState === 'main', userProfile);
 
   const renderScreen = () => {
     switch (appState) {

@@ -28,7 +28,7 @@ const OPERATOR_COLORS: Record<string, string> = {
 };
 
 const LedgerScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -45,13 +45,7 @@ const LedgerScreen: React.FC = () => {
     } catch { }
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    await loadAll();
-    setLoading(false);
-  }, [loadAll]);
-
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
