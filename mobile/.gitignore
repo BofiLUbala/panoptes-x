@@ -9,3 +9,7 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
+crash_logs.txt
+dist-test/
+export_test/
+build.log
