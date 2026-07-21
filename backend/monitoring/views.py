@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from .models import Device, WatchRelation, ForwardedSms, DeviceHeartbeat
 from .permissions import HasDeviceSecret
@@ -27,6 +29,31 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def push_sms_to_watcher(watcher_device, sms, target_device):
+    """Push a freshly forwarded SMS to the watcher's live WebSocket feed, if any user is listening."""
+    user = getattr(watcher_device, 'user', None)
+    if not user:
+        return
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        return
+    payload = {
+        'type': 'new_sms',
+        'sms_id': str(sms.id),
+        'sender': sms.sender,
+        'message': sms.message,
+        'target_phone': target_device.phone_number,
+        'received_at': sms.received_at.isoformat(),
+    }
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f'sms_feed_{user.id}',
+            {'type': 'sms_received', 'payload': payload},
+        )
+    except Exception:
+        logger.exception('push_sms_to_watcher: failed to push to sms_feed_%s', user.id)
 
 
 def _get_watcher_device(request):
@@ -367,7 +394,7 @@ class ForwardSmsView(APIView):
         watchers = WatchRelation.objects.filter(
             target=target,
             status='active',
-        ).select_related('watcher')
+        ).select_related('watcher', 'watcher__user')
         for rel in watchers:
             send_fcm_notification(
                 rel.watcher.fcm_token,
@@ -379,6 +406,7 @@ class ForwardSmsView(APIView):
                     'sms_id': str(sms.id),
                 },
             )
+            push_sms_to_watcher(rel.watcher, sms, target)
 
         return Response(ForwardedSmsSerializer(sms).data, status=status.HTTP_201_CREATED)
 

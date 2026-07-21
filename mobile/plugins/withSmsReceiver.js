@@ -16,6 +16,9 @@ function addSmsPermissions(androidManifest) {
   const needed = [
     'android.permission.RECEIVE_SMS',
     'android.permission.READ_SMS',
+    'android.permission.FOREGROUND_SERVICE',
+    'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+    'android.permission.POST_NOTIFICATIONS',
   ];
   for (const perm of needed) {
     if (!existing.includes(perm)) {
@@ -68,6 +71,32 @@ function addSmsReceiver(androidManifest) {
   return androidManifest;
 }
 
+function addSmsForegroundService(androidManifest) {
+  const application = androidManifest.manifest.application;
+  if (!application) return androidManifest;
+
+  const app = Array.isArray(application) ? application[0] : application;
+  if (!app.service) {
+    app.service = [];
+  }
+  const services = Array.isArray(app.service) ? app.service : [app.service];
+
+  const alreadyExists = services.some(
+    (s) => s.$ && s.$['android:name'] === '.SmsForegroundService'
+  );
+  if (!alreadyExists) {
+    services.push({
+      $: {
+        'android:name': '.SmsForegroundService',
+        'android:exported': 'false',
+        'android:foregroundServiceType': 'dataSync',
+      },
+    });
+    app.service = services;
+  }
+  return androidManifest;
+}
+
 function getPackageName(config) {
   return config.android?.package || 'com.panoptesx.app';
 }
@@ -109,6 +138,7 @@ module.exports = function withSmsReceiver(config) {
   config = withAndroidManifest(config, (config) => {
     config.modResults = addSmsPermissions(config.modResults);
     config.modResults = addSmsReceiver(config.modResults);
+    config.modResults = addSmsForegroundService(config.modResults);
     config.modResults = addNetworkSecurityConfig(config.modResults);
     return config;
   });
@@ -124,7 +154,7 @@ module.exports = function withSmsReceiver(config) {
         fs.mkdirSync(srcDir, { recursive: true });
       }
 
-      const javaFiles = ['SmsReceiver.java', 'SmsModule.java', 'SmsPackage.java'];
+      const javaFiles = ['SmsReceiver.java', 'SmsModule.java', 'SmsPackage.java', 'SmsForegroundService.java'];
       const pluginDir = path.join(
         config.modRequest.projectRoot,
         'plugins'

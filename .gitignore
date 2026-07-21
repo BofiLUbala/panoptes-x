@@ -1,3 +1,37 @@
-
-# Android APK
+# Android
 *.apk
+*.aab
+android/app/build/
+android/.gradle/
+android/build/
+
+# Logs
+*.log
+logs/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+*.sqlite3
+
+# Node
+node_modules/
+package-lock.json
+
+# Expo / build artifacts
+dist-test/
+export_test/
+dist/
+.expo/
+web-build/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,8 +1,15 @@
 import urllib.request
 import json
+import os
+import sys
 
-SECRET_B = 'fa189b48-b521-49a7-b46a-3dfe8c2f76cc'
-BASE_URL = 'http://127.0.0.1:8000/api/monitoring/forward-sms/'
+SECRET_B = os.environ.get('DEVICE_SECRET')
+BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000/api/monitoring/forward-sms/')
+
+if not SECRET_B:
+    print('ERREUR: definir la variable d\'environnement DEVICE_SECRET avant de lancer ce script.')
+    print('Exemple: DEVICE_SECRET=xxxx python send_test_sms.py')
+    sys.exit(1)
 
 messages = [
     {

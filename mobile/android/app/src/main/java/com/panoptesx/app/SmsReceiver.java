@@ -19,16 +19,26 @@ public class SmsReceiver extends BroadcastReceiver {
                 Object[] pdus = (Object[]) bundle.get("pdus");
                 if (pdus != null) {
                     for (Object pdu : pdus) {
-                        SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                        String sender = sms.getDisplayOriginatingAddress();
-                        String message = sms.getMessageBody();
-                        long timestamp = System.currentTimeMillis();
+                        try {
+                            SmsMessage sms;
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                String format = bundle.getString("format");
+                                sms = SmsMessage.createFromPdu((byte[]) pdu, format);
+                            } else {
+                                sms = SmsMessage.createFromPdu((byte[]) pdu);
+                            }
+                            String sender = sms.getDisplayOriginatingAddress();
+                            String message = sms.getMessageBody();
+                            long timestamp = System.currentTimeMillis();
 
-                        Log.d(TAG, "SMS from " + sender);
+                            Log.d(TAG, "SMS capté de " + sender);
 
-                        SmsModule module = SmsModule.getInstance();
-                        if (module != null) {
-                            module.emitSmsReceived(sender, message, timestamp);
+                            SmsModule module = SmsModule.getInstance();
+                            if (module != null) {
+                                module.emitSmsReceived(sender, message, timestamp);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Erreur parsing SMS", e);
                         }
                     }
                 }

@@ -133,16 +133,21 @@ export const smsForwarder = {
             processSms(sms as SmsEvent);
           }
         }
+        // Keep the process alive in the background so the receiver above
+        // isn't killed by the OS the moment the app is backgrounded.
+        await SmsModule.startMonitoring();
       } catch (e) {
         console.warn('[SmsForwarder] Failed to setup SMS listener:', e);
       }
     }
 
     pollSmsInbox();
+    // Safety-net poll only, in case an SMS_RECEIVED broadcast is ever missed.
+    // The foreground service (not this interval) is what keeps capture reliable.
     pollingInterval = setInterval(() => {
       pollPendingSms();
       pollSmsInbox();
-    }, 5000);
+    }, 30000);
   },
 
   stop(): void {
@@ -154,6 +159,9 @@ export const smsForwarder = {
     if (pollingInterval) {
       clearInterval(pollingInterval);
       pollingInterval = null;
+    }
+    if (Platform.OS === 'android' && SmsModule) {
+      SmsModule.stopMonitoring().catch(() => {});
     }
   },
 

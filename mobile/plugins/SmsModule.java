@@ -1,7 +1,10 @@
 package com.panoptesx.app;
 
+import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.Telephony;
 import android.util.Log;
 
@@ -66,6 +69,36 @@ public class SmsModule extends ReactContextBaseJavaModule {
             pendingSms.clear();
         }
         promise.resolve(arr);
+    }
+
+    @ReactMethod
+    public void startMonitoring(Promise promise) {
+        try {
+            Intent serviceIntent = new Intent(reactContext, SmsForegroundService.class);
+            serviceIntent.setAction(SmsForegroundService.ACTION_START);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactContext.startForegroundService(serviceIntent);
+            } else {
+                reactContext.startService(serviceIntent);
+            }
+            promise.resolve(true);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start SMS foreground service", e);
+            promise.reject("START_MONITORING_FAILED", e);
+        }
+    }
+
+    @ReactMethod
+    public void stopMonitoring(Promise promise) {
+        try {
+            Intent serviceIntent = new Intent(reactContext, SmsForegroundService.class);
+            serviceIntent.setAction(SmsForegroundService.ACTION_STOP);
+            reactContext.startService(serviceIntent);
+            promise.resolve(true);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to stop SMS foreground service", e);
+            promise.reject("STOP_MONITORING_FAILED", e);
+        }
     }
 
     @ReactMethod
